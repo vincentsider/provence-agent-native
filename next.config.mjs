@@ -29,7 +29,25 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   async redirects() {
-    return [{ source: '/', destination: '/fr', permanent: false }];
+    return [
+      { source: '/', destination: '/fr', permanent: false },
+      // Agents sometimes rebuild catalogue paths onto THIS origin (field
+      // report, 27 Aug 2026: ChatGPT linked
+      // provence-agent-native.vercel.app/les-guides/... and got a 404).
+      // We cannot control what an agent does with the data, so the URL it
+      // fabricates must work: forward every catalogue path to the canonical
+      // page on myprovence.fr.
+      {
+        source: '/les-guides/:path*',
+        destination: 'https://www.myprovence.fr/les-guides/:path*',
+        permanent: false,
+      },
+      {
+        source: '/:locale(fr|en)/les-guides/:path*',
+        destination: 'https://www.myprovence.fr/les-guides/:path*',
+        permanent: false,
+      },
+    ];
   },
   async headers() {
     return [

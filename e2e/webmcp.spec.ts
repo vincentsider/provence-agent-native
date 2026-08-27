@@ -11,6 +11,19 @@ test.describe('human surface', () => {
     await expect(page.getByTestId('map')).toBeVisible();
   });
 
+  test('a fabricated same-origin catalogue path redirects to the canonical page', async ({ request }) => {
+    // Field failure, 27 Aug 2026: an agent glued the catalogue path onto this
+    // origin and linked a 404. The wrong URL must work.
+    const res = await request.get(
+      '/les-guides/hebergements/hotels/la-ciotat/hotel-plage-saint-jean',
+      { maxRedirects: 0 },
+    );
+    expect([307, 308]).toContain(res.status());
+    expect(res.headers()['location']).toBe(
+      'https://www.myprovence.fr/les-guides/hebergements/hotels/la-ciotat/hotel-plage-saint-jean',
+    );
+  });
+
   test('a human filter updates the result count', async ({ page }) => {
     await page.goto('/fr');
     await page.getByRole('button', { name: 'Hôtels' }).click();
