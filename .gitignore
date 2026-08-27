@@ -21,3 +21,4 @@ build/flagged-content.json
 coverage/
 playwright-report/
 test-results/
+.vercel
