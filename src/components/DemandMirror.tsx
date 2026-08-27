@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * The Demand Mirror (issue #603): every tool call this session's agent made,
- * with its arguments and result count, and the zero-result roll-up phrased as
- * an offer gap. Session-scoped; empties when the tab closes.
+ * The Demand Mirror as a designed editorial feature, not a debug panel:
+ * a petrol block in the site's dark-section language, yellow display
+ * heading, slab text, yellow zero-result callout. Session-scoped.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -22,50 +22,52 @@ export function DemandMirror() {
     <aside
       aria-label={t('title')}
       data-testid="demand-mirror"
-      className="h-fit space-y-3 rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
+      className="bg-brand-petrol p-5 text-white"
     >
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="display-caps text-[15px] leading-tight text-brand-yellow">
           {t('title')}
         </h2>
-        <span className="text-xs text-stone-400">{t('calls', { count: entries.length })}</span>
+        <span className="font-slab text-[12px] text-white/50">
+          {t('calls', { count: entries.length })}
+        </span>
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-stone-500">{t('empty')}</p>
+        <p className="mt-3 font-slab text-[14px] leading-relaxed text-white/70">
+          {t('empty')}
+        </p>
       ) : (
-        <ol className="max-h-[340px] space-y-2 overflow-y-auto text-xs" data-testid="mirror-entries">
+        <ol
+          className="mt-3 max-h-[300px] space-y-1.5 overflow-y-auto text-[12px]"
+          data-testid="mirror-entries"
+        >
           {entries.slice(-SHOW_LAST).map((e, idx) => (
-            <li key={`${e.at}-${idx}`} className="rounded bg-stone-50 p-2 font-mono">
+            <li key={`${e.at}-${idx}`} className="bg-white/5 p-2 font-mono">
               <div className="flex justify-between gap-2">
-                <span className="font-semibold text-stone-800">{e.tool}</span>
-                <span className={e.total === 0 ? 'text-rose-600' : 'text-stone-500'}>
+                <span className="font-semibold text-white">{e.tool}</span>
+                <span className={e.total === 0 ? 'text-brand-yellow' : 'text-white/50'}>
                   {e.total !== null ? t('results', { count: e.total }) : '—'}
                 </span>
               </div>
-              <div className="mt-1 break-all text-stone-500">{formatArgs(e)}</div>
+              <div className="mt-0.5 break-all text-white/50">{formatArgs(e)}</div>
             </li>
           ))}
         </ol>
       )}
 
       {zero.length > 0 && (
-        <div
-          data-testid="zero-results"
-          className="rounded border border-rose-200 bg-rose-50 p-3"
-        >
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-rose-800">
-            {t('zeroTitle')}
-          </h3>
-          <p className="mt-1 text-sm text-rose-900">{t('zeroLine', { count: zero.length })}</p>
-          <ul className="mt-2 space-y-1 text-xs text-rose-800">
+        <div data-testid="zero-results" className="mt-4 bg-brand-yellow p-3 text-brand-ink">
+          <h3 className="display-caps text-[12px]">{t('zeroTitle')}</h3>
+          <p className="mt-1 font-slab text-[14px] font-semibold">
+            {t('zeroLine', { count: zero.length })}
+          </p>
+          <ul className="mt-2 space-y-1 font-mono text-[12px]">
             {zero.slice(-5).map((e, idx) => (
-              <li key={idx} className="font-mono">
-                {formatArgs(e)}
-              </li>
+              <li key={idx}>{formatArgs(e)}</li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-rose-700">{t('zeroExplain')}</p>
+          <p className="mt-2 font-slab text-[13px]">{t('zeroExplain')}</p>
         </div>
       )}
     </aside>

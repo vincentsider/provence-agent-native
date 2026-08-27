@@ -56,6 +56,7 @@ function loadRealOrSynthetic(): { catalog: Catalog; vocab: Vocab; label: string 
     tags: TAGS.filter(() => rand() < 0.03).sort((a, b) => a - b),
     u: `/les-guides/loisirs/x/p-${i}`,
     s: '',
+    img: null,
   }));
   const tags: Record<string, VocabTag> = {};
   for (const id of TAGS) {

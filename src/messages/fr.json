@@ -1,13 +1,16 @@
 {
   "app": {
     "title": "Provence, lisible par les agents",
-    "subtitle": "Les cinq guides de myprovence.fr, ouverts aux humains et aux IA sur la même page.",
+    "subtitle": "Les cinq guides de myprovence.fr, ouverts aux humains et aux agents IA sur la même page. Hôtels, campings, chambres d'hôtes, loisirs et itinéraires : 2 798 adresses des Bouches-du-Rhône, interrogeables en une question.",
     "sourceNote": "Contenus : Provence Tourisme (myprovence.fr), instantané du {date}. Chaque fiche renvoie vers la page d'origine.",
     "loading": "Chargement du catalogue…",
     "loadError": "Le catalogue n'a pas pu être chargé. La page reste consultable, les outils répondront une fois le catalogue disponible.",
     "webmcpActive": "Outils de site actifs : {count} outils exposés aux agents IA.",
     "webmcpInactive": "Navigateur sans WebMCP : la page fonctionne normalement, sans outils d'agent.",
-    "webmcpPartial": "Outils de site : {ok} enregistrés, {failed} refusés par le navigateur."
+    "webmcpPartial": "Outils de site : {ok} enregistrés, {failed} refusés par le navigateur.",
+    "brandTop": "Le média de Provence Tourisme, ouvert aux agents",
+    "heroCrumb": "myprovence.fr › les guides",
+    "heroTitle": "Les guides de Provence"
   },
   "clusters": {
     "all": "Tout",
@@ -30,10 +33,11 @@
     "viewOnSite": "Voir sur myprovence.fr",
     "stars": "{count, plural, one {# étoile} other {# étoiles}}",
     "showMore": "Afficher plus",
-    "agentDrove": "Résultat affiché par l'agent"
+    "agentDrove": "Résultat affiché par l'agent",
+    "open": "Voir la fiche"
   },
   "mirror": {
-    "title": "Miroir de la demande",
+    "title": "La demande invisible",
     "empty": "Aucun appel d'agent pour l'instant. Ouvrez cette page dans un navigateur compatible WebMCP et posez une question à l'IA.",
     "results": "{count, plural, =0 {0 résultat} one {# résultat} other {# résultats}}",
     "zeroTitle": "Demande sans réponse",

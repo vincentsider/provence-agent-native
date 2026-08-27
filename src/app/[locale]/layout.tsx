@@ -2,11 +2,32 @@ import type { Metadata } from 'next';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { Archivo_Black, Zilla_Slab } from 'next/font/google';
 import { locales } from '@/i18n/request';
 import '../globals.css';
 
+/**
+ * Typography per the live-site probe: body/headings in Zilla Slab, uppercase
+ * display in a heavy geometric sans. myprovence.fr uses MostraNuova-Heavy,
+ * a commercial face we must not copy; Archivo Black is the closest open
+ * face. next/font self-hosts both at build time, so font-src 'self' holds.
+ */
+const displayFont = Archivo_Black({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const slabFont = Zilla_Slab({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-slab',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'Provence, lisible par les agents',
+  title: 'Les guides de Provence, lisibles par les agents',
   description:
     'Les cinq guides de myprovence.fr, ouverts aux humains et aux agents IA sur la même page (WebMCP).',
   robots: { index: false, follow: false },
@@ -30,13 +51,13 @@ export default async function LocaleLayout({
   const messages = (await import(`@/messages/${locale}.json`)).default;
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${displayFont.variable} ${slabFont.variable}`}>
       <head>
         {/* Start the catalogue download before the JS bundle finishes parsing
             (spec 7.4). The manifest is tiny and no-cache. */}
         <link rel="preload" href="/data/manifest.json" as="fetch" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
+      <body className="min-h-screen bg-white font-slab text-brand-ink antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>

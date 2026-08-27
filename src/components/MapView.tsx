@@ -1,13 +1,16 @@
 'use client';
 
 /**
- * Leaflet map over the shared view state. Leak posture: the map instance and
- * its layers are torn down with map.remove() on unmount; markers live in one
- * LayerGroup that is cleared (not re-created) on every update; the render cap
- * keeps a "highlight everything" call from creating thousands of DOM nodes.
+ * Leaflet map over the shared view state, styled in the source site's map
+ * language: coral circle markers with white strokes; agent-driven results
+ * flip to petrol with a yellow ring so the visitor sees who acted.
+ *
+ * Leak posture: the map and its layers are torn down with map.remove() on
+ * unmount; markers live in one LayerGroup cleared (not re-created) per
+ * update; the render cap bounds DOM nodes.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import type { Store, ViewState } from '@/lib/store';
 import 'leaflet/dist/leaflet.css';
@@ -17,10 +20,17 @@ const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+const CORAL = '#EE6E62';
+const PETROL = '#002731';
+const YELLOW = '#FFE500';
+
 export function MapView({ store, view }: { store: Store; view: ViewState }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<LayerGroup | null>(null);
+  // The Leaflet import is async: highlights that arrive before init must be
+  // drawn once the map exists, so readiness is state, not just a ref.
+  const [mapReady, setMapReady] = useState(false);
 
   // Create once, destroy on unmount.
   useEffect(() => {
@@ -36,6 +46,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 18 }).addTo(map);
       markersRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
+      setMapReady(true);
     })();
     return () => {
       cancelled = true;
@@ -62,6 +73,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       const group = markersRef.current;
       if (cancelled || !group) return;
       group.clearLayers();
+      const agentDriven = view.lastActor === 'agent';
       const places = store.catalog.places;
       let drawn = 0;
       for (const i of view.highlighted) {
@@ -69,14 +81,15 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         const p = places[i];
         if (!p || p.lat === null || p.lng === null) continue;
         L.circleMarker([p.lat, p.lng], {
-          radius: 6,
-          weight: 1.5,
-          color: view.lastActor === 'agent' ? '#7c3aed' : '#0f766e',
-          fillColor: view.lastActor === 'agent' ? '#a78bfa' : '#2dd4bf',
-          fillOpacity: 0.7,
+          radius: 8,
+          weight: agentDriven ? 3 : 2,
+          color: agentDriven ? YELLOW : '#ffffff',
+          fillColor: agentDriven ? PETROL : CORAL,
+          fillOpacity: 0.95,
         })
           .bindPopup(
-            `<strong>${escapeHtml(p.n)}</strong><br/><a href="https://www.myprovence.fr${escapeAttr(p.u)}" target="_blank" rel="noopener noreferrer">myprovence.fr</a>`,
+            `<span class="display-caps" style="font-size:12px;color:${PETROL}">${escapeHtml(p.n)}</span>` +
+              `<br/><a href="https://www.myprovence.fr${escapeAttr(p.u)}" target="_blank" rel="noopener noreferrer" style="color:${CORAL}">myprovence.fr</a>`,
           )
           .addTo(group);
         drawn++;
@@ -85,7 +98,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     return () => {
       cancelled = true;
     };
-  }, [store, view.highlighted, view.lastActor]);
+  }, [store, view.highlighted, view.lastActor, mapReady]);
 
   return (
     <div
@@ -93,7 +106,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       data-testid="map"
       role="region"
       aria-label="Carte"
-      className="h-[380px] w-full overflow-hidden rounded-lg border border-stone-200 shadow-sm"
+      className="h-[420px] w-full border border-brand-ink/10"
     />
   );
 }

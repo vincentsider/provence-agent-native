@@ -14,6 +14,7 @@ const HUB_SAMPLE = `
 <span role="presentation"><b>1 SUR 12</b></span>
 <a href="/x?f%5B0%5D=maptags%3A469" rel="nofollow" data-drupal-facet-item-id="maptags-469" data-drupal-facet-item-value="469" data-drupal-facet-item-count="419"><span class="facet-item__value">Parking</span></a>
 <article data-history-node-id="29990" role="article" about="/les-guides/hebergements/hotels/aix-en-provence/ibis-aix-en-provence" class="node--type--poi node--view-mode--hub-teaser">
+  <img loading="lazy" src="/sites/default/files/styles/main/public/poi/5217912/386.jpg?itok=Z3eFl20j" width="1600" height="1199" alt="" />
   <div class="title">Ibis Aix en Provence</div>
   <div class="teaser-city">Aix-en-Provence</div>
   <div class="hidden poi-hub-map-coordinates" lat="43.511362" lon="5.462800"></div>
@@ -41,6 +42,7 @@ describe('parseHubPage', () => {
       town: 'Aix-en-Provence',
       lat: 43.51136,
       lng: 5.4628,
+      img: '/sites/default/files/styles/main/public/poi/5217912/386.jpg?itok=Z3eFl20j',
     });
     expect(test!.town).toBeNull();
     expect(test!.name).toBe('Hôtel Test');
@@ -56,8 +58,13 @@ describe('parseHubPage', () => {
 });
 
 const DETAIL_SAMPLE = `
-<article data-history-node-id="777" role="article" about="/autre/page"></article>
-<article data-history-node-id="34657" role="article" about="/les-guides/hebergements/hotels/aix-en-provence/domaine-gao"></article>
+<link rel="canonical" href="https://www.myprovence.fr/les-guides/hebergements/hotels/aix-en-provence/domaine-gao" />
+<article data-history-node-id="777" role="article" about="/autre/page" class="node--type--edito">
+  <img src="/sites/default/files/styles/main/public/related/WRONG.jpg?itok=x" />
+</article>
+<article data-history-node-id="34657" role="article" about="/les-guides/hebergements/hotels/aix-en-provence/domaine-gao" class="node--type--poi node--view-mode--full">
+  <img src="/sites/default/files/styles/main/public/poi/5217619/RIGHT.jpg?itok=y" />
+</article>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Hotel","name":"Domaine Gao","description":"Bastide du XVIIIe si\\u00e8cle.","latitude":43.495324,"longitude":5.395952,"identifier":"5217619","address":{"@type":"PostalAddress","addressLocality":"Aix-en-Provence"}}</script>
 <div about="/taxonomy/term/469"> <h2><a href="/taxonomy/term/469"> <div>Parking</div> </a></h2></div>
 <div about="/taxonomy/term/463"> <h2><a href="/taxonomy/term/463"> <div>Animaux acceptés</div> </a></h2></div>
@@ -65,7 +72,10 @@ const DETAIL_SAMPLE = `
 `;
 
 describe('parseDetailPage', () => {
-  const d = parseDetailPage(DETAIL_SAMPLE);
+  const d = parseDetailPage(
+    DETAIL_SAMPLE,
+    '/les-guides/hebergements/hotels/aix-en-provence/domaine-gao',
+  );
 
   it('reads the JSON-LD fields', () => {
     expect(d.name).toBe('Domaine Gao');
@@ -85,6 +95,28 @@ describe('parseDetailPage', () => {
     expect(d.grade).toBe(4);
   });
 
+  it('takes the image from the page own article, never a related strip', () => {
+    expect(d.img).toBe('/sites/default/files/styles/main/public/poi/5217619/RIGHT.jpg?itok=y');
+    expect(d.isListPage).toBe(false);
+  });
+
+  it('flags stale entries whose page redirects to a hub', () => {
+    const html = '<link rel="canonical" href="https://www.myprovence.fr/les-guides/loisirs/loisirs-natures" />' +
+      '<article about="/les-guides/loisirs/loisirs-natures" class="node--type--poi-hub-map"></article>';
+    const r = parseDetailPage(html, '/les-guides/loisirs/loisirs-natures/fontvieille/centre-equestre');
+    expect(r.redirected).toBe(true);
+  });
+
+  it('keeps a page whose canonical is itself', () => {
+    expect(d.redirected).toBe(false);
+  });
+
+  it('flags hub/listing pages misfiled as places', () => {
+    const listHtml = '<article data-history-node-id="413" about="/les-guides/loisirs/tout-le-guide/arles" class="node--type--poi-hub-map node--view-mode--full"></article>';
+    const r = parseDetailPage(listHtml, '/les-guides/loisirs/tout-le-guide/arles');
+    expect(r.isListPage).toBe(true);
+  });
+
   it('anchors the node id on the page own path', () => {
     expect(
       parseDetailNodeId(DETAIL_SAMPLE, '/les-guides/hebergements/hotels/aix-en-provence/domaine-gao'),
@@ -98,6 +130,10 @@ describe('pathToTown', () => {
     expect(
       pathToTown('/les-guides/hebergements/hotels/aix-en-provence/domaine-gao', 'hebergements/hotels'),
     ).toBe('Aix En Provence');
+    // loisirs paths insert a subcategory: town is second-to-last, not first
+    expect(
+      pathToTown('/les-guides/loisirs/artisans-et-producteurs/eyragues/les-arts-au-soleil', 'loisirs'),
+    ).toBe('Eyragues');
     expect(pathToTown('/les-guides/loisirs/only-slug', 'loisirs')).toBeNull();
   });
 });

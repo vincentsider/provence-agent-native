@@ -1,10 +1,14 @@
 'use client';
 
 /**
- * Client root. Importing this module on the client registers the nine WebMCP
- * tools as a module-evaluation side effect — deliberately BEFORE the
- * catalogue fetch resolves (spec 7.4): an agent that lands and calls
- * getTools() immediately must see the complete list.
+ * Client root, in the myprovence.fr visual language (brand-match approved by
+ * Provence Tourisme, 27 Aug 2026): yellow masthead with uppercase display
+ * nav, yellow hero band with the big display title and Zilla Slab intro,
+ * flat photo cards, coral map markers, petrol editorial panels.
+ *
+ * Importing this module on the client registers the nine WebMCP tools as a
+ * module-evaluation side effect — deliberately BEFORE the catalogue fetch
+ * resolves (spec 7.4).
  */
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -25,20 +29,109 @@ if (typeof document !== 'undefined') {
 const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
 
 export function App() {
-  const t = useTranslations('app');
-  const locale = useLocale();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
     return (
-      <main className="mx-auto max-w-7xl p-6">
-        <Header locale={locale} title={t('title')} subtitle={t('subtitle')} />
-        <p className="mt-8 text-sm text-stone-500">{t('loading')}</p>
-      </main>
+      <>
+        <Masthead cluster={null} onCluster={null} />
+        <Hero />
+      </>
     );
   }
-  return <Loaded locale={locale} />;
+  return <Loaded />;
+}
+
+/** The yellow bar: wordmark left, the five guides as uppercase nav, FR/EN. */
+function Masthead({
+  cluster,
+  onCluster,
+}: {
+  cluster: ClusterKey | null;
+  onCluster: ((c: ClusterKey | null) => void) | null;
+}) {
+  const tc = useTranslations('clusters');
+  const locale = useLocale();
+  return (
+    <div className="bg-brand-yellow">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
+        <button
+          type="button"
+          onClick={() => onCluster?.(null)}
+          className="display-caps shrink-0 text-xl leading-none text-brand-ink"
+          aria-label="Tout le catalogue"
+        >
+          my&#8202;provence
+          <span className="ml-2 align-middle font-slab text-[11px] font-semibold normal-case tracking-wide text-brand-ink/70">
+            × agents IA
+          </span>
+        </button>
+
+        <nav
+          aria-label="Guides"
+          className="order-3 flex w-full flex-wrap items-center gap-x-1 gap-y-1 md:order-none md:w-auto md:flex-1 md:justify-center"
+        >
+          {CLUSTERS.map((c, i) => (
+            <span key={c.key} className="flex items-center">
+              {i > 0 && <span aria-hidden className="mx-1 text-brand-ink/40">|</span>}
+              <button
+                type="button"
+                onClick={() => onCluster?.(cluster === c.key ? null : c.key)}
+                aria-pressed={cluster === c.key}
+                className={
+                  'display-caps px-1.5 py-1 text-[13px] leading-none transition-colors ' +
+                  (cluster === c.key
+                    ? 'bg-brand-ink text-brand-yellow'
+                    : 'text-brand-ink hover:text-brand-red')
+                }
+              >
+                {tc(c.key)}
+              </button>
+            </span>
+          ))}
+        </nav>
+
+        <nav aria-label="Language" className="ml-auto flex shrink-0 gap-1 md:ml-0">
+          {['fr', 'en'].map((l) => (
+            <a
+              key={l}
+              href={`/${l}`}
+              className={
+                'display-caps px-2 py-1 text-[12px] leading-none ' +
+                (l === locale
+                  ? 'bg-brand-ink text-brand-yellow'
+                  : 'text-brand-ink/60 hover:text-brand-ink')
+              }
+            >
+              {l}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+/** The yellow hero band: crumb, display title, slab intro, live status. */
+function Hero() {
+  const t = useTranslations('app');
+  return (
+    <div className="bg-brand-yellow pb-10 pt-2">
+      <div className="mx-auto max-w-[900px] px-5 text-center">
+        <p className="font-slab text-[13px] text-brand-ink/60">{t('heroCrumb')}</p>
+        <h1 className="display-caps mt-3 text-4xl leading-[1.05] text-brand-ink md:text-6xl">
+          {t('heroTitle')}
+        </h1>
+        <p className="mx-auto mt-4 max-w-[640px] font-slab text-[17px] leading-relaxed text-brand-ink/90">
+          {t('subtitle')}
+        </p>
+        <div className="mt-5 flex justify-center">
+          <WebMcpBadge />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function WebMcpBadge() {
@@ -48,70 +141,33 @@ function WebMcpBadge() {
     getWebMcpStatus,
     getWebMcpStatus,
   );
-  // The badge reports what actually happened, not what should have: a green
-  // "active" pill over zero registered tools once made a field failure in
-  // ChatGPT's browser undiagnosable from a screenshot.
+  // Reports what actually happened, not what should have (field lesson from
+  // ChatGPT's browser: a green pill over zero registered tools hides the bug).
   const count = status.verified ?? status.registered;
   let text: string;
   let tone: string;
   if (!status.supported) {
     text = t('webmcpInactive');
-    tone = 'bg-stone-200 text-stone-600';
+    tone = 'bg-white/70 text-brand-ink/70';
   } else if (status.failed.length > 0 || (status.verified !== null && status.verified < 9)) {
     text = t('webmcpPartial', { ok: count, failed: 9 - count });
-    tone = 'bg-amber-100 text-amber-800';
+    tone = 'bg-brand-red text-white';
   } else {
     text = t('webmcpActive', { count });
-    tone = 'bg-emerald-100 text-emerald-800';
+    tone = 'bg-brand-ink text-brand-yellow';
   }
   return (
-    <span data-testid="webmcp-status" className={'rounded-full px-3 py-1 text-xs ' + tone}>
+    <span
+      data-testid="webmcp-status"
+      className={'px-4 py-1.5 font-slab text-[13px] font-semibold ' + tone}
+    >
       {text}
     </span>
   );
 }
 
-function Header({
-  locale,
-  title,
-  subtitle,
-  showBadge,
-}: {
-  locale: string;
-  title: string;
-  subtitle: string;
-  showBadge?: boolean;
-}) {
-  return (
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-stone-600">{subtitle}</p>
-      </div>
-      <div className="flex items-center gap-3 text-sm">
-        {showBadge && <WebMcpBadge />}
-        <nav aria-label="Language" className="flex gap-2">
-          {['fr', 'en'].map((l) => (
-            <a
-              key={l}
-              href={`/${l}`}
-              className={
-                'rounded px-2 py-1 uppercase ' +
-                (l === locale ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-900')
-              }
-            >
-              {l}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </header>
-  );
-}
-
-function Loaded({ locale }: { locale: string }) {
+function Loaded() {
   const t = useTranslations('app');
-  const tc = useTranslations('clusters');
   const tf = useTranslations('footer');
   const store = getStore();
   const view: ViewState = useSyncExternalStore(store.subscribe, store.getView, store.getView);
@@ -140,72 +196,39 @@ function Loaded({ locale }: { locale: string }) {
   }, [filter, view.loadState]);
 
   return (
-    <main className="mx-auto max-w-7xl p-6">
-      <Header locale={locale} title={t('title')} subtitle={t('subtitle')} showBadge />
+    <>
+      <Masthead
+        cluster={filter.cluster}
+        onCluster={(c) => setFilter((f) => ({ ...f, cluster: c }))}
+      />
+      <Hero />
 
-      {view.loadState === 'error' && (
-        <p className="mt-6 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          {t('loadError')}
-        </p>
-      )}
+      <main className="mx-auto max-w-[1400px] px-5 py-8">
+        {view.loadState === 'error' && (
+          <p className="mb-6 border-l-4 border-brand-red bg-brand-paper p-3 font-slab text-sm">
+            {t('loadError')}
+          </p>
+        )}
 
-      <nav aria-label="Clusters" className="mt-6 flex flex-wrap gap-2">
-        <ClusterTab
-          label={tc('all')}
-          active={filter.cluster === null}
-          onClick={() => setFilter((f) => ({ ...f, cluster: null }))}
-        />
-        {CLUSTERS.map((c) => (
-          <ClusterTab
-            key={c.key}
-            label={tc(c.key)}
-            active={filter.cluster === c.key}
-            onClick={() => setFilter((f) => ({ ...f, cluster: c.key as ClusterKey }))}
-          />
-        ))}
-      </nav>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_360px]">
-        <FacetPanel store={store} filter={filter} onChange={setFilter} total={view.total} />
-        <div className="min-w-0 space-y-6">
-          <MapView store={store} view={view} />
+        <div className="grid gap-8 lg:grid-cols-[250px_minmax(0,1fr)_400px]">
+          <FacetPanel store={store} filter={filter} onChange={setFilter} total={view.total} />
           <PlaceList store={store} view={view} />
+          <div className="space-y-6">
+            <MapView store={store} view={view} />
+            <DemandMirror />
+          </div>
         </div>
-        <DemandMirror />
-      </div>
+      </main>
 
-      <footer className="mt-12 border-t border-stone-200 pt-4 text-xs text-stone-500">
-        <p>{tf('credit')}</p>
-        <p className="mt-1">
-          {t('sourceNote', { date: '2026-08-27' })} · {tf('notIndex')}
-        </p>
+      <footer className="mt-10 bg-brand-petrol py-8 text-white/80">
+        <div className="mx-auto max-w-[1400px] px-5 font-slab text-[13px] leading-relaxed">
+          <p className="display-caps mb-2 text-[13px] text-brand-yellow">{t('brandTop')}</p>
+          <p>{tf('credit')}</p>
+          <p className="mt-1 text-white/50">
+            {t('sourceNote', { date: '2026-08-27' })} · {tf('notIndex')}
+          </p>
+        </div>
       </footer>
-    </main>
-  );
-}
-
-function ClusterTab({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        'rounded-full px-4 py-1.5 text-sm transition ' +
-        (active
-          ? 'bg-stone-900 text-white'
-          : 'bg-white text-stone-700 shadow-sm ring-1 ring-stone-200 hover:ring-stone-400')
-      }
-    >
-      {label}
-    </button>
+    </>
   );
 }

@@ -45,7 +45,9 @@ const OUT_DIR = path.join(__dirname, '..', 'data-out');
 const BUILD_DIR = path.join(__dirname, '..', 'build');
 const BASE = 'https://www.myprovence.fr/les-guides';
 
-const BUDGET_CATALOG_BROTLI = 350 * 1024;
+// Raised from 350KB on 27 Aug when per-place photo paths joined the
+// record: the brand-matched surface is photo-led, like the source site.
+const BUDGET_CATALOG_BROTLI = 480 * 1024;
 const BUDGET_VOCAB_BROTLI = 40 * 1024;
 const MAX_RECORDS = 0xffff; // Uint16Array indexing ceiling
 const DRIFT_TOLERANCE = 0.1;
@@ -78,6 +80,7 @@ interface WorkingPlace {
   tagIds: Set<number>;
   path: string;
   summary: string;
+  img: string | null;
 }
 
 async function main(): Promise<void> {
@@ -138,6 +141,7 @@ async function main(): Promise<void> {
       tagIds: new Set(),
       path: entry.path,
       summary: '',
+      img: null,
     };
     byPath.set(entry.path, wp);
   }
@@ -150,13 +154,22 @@ async function main(): Promise<void> {
   }
 
   // ---- Stage 2 (optional): detail enrichment ------------------------------
+  let listPagesDropped = 0;
   if (args.enrich) {
     const targets = [...byPath.values()].slice(0, args.limit ?? Infinity);
     let done = 0;
     for (const wp of targets) {
       try {
         const html = await fetchCached(`https://www.myprovence.fr${wp.path}`);
-        const d = parseDetailPage(html);
+        const d = parseDetailPage(html, wp.path);
+        if (d.isListPage || d.redirected) {
+          // Either a city/theme LISTING page the sitemap files under a
+          // cluster, or a stale entry whose page now redirects to a hub.
+          // Not a live place; drop it rather than ship junk.
+          byPath.delete(wp.path);
+          listPagesDropped++;
+          continue;
+        }
         const nodeId = parseDetailNodeId(html, wp.path);
         if (nodeId !== null) wp.nodeId = nodeId;
         if (d.name) wp.name = d.name;
@@ -170,6 +183,7 @@ async function main(): Promise<void> {
         if (d.lng !== null) wp.lng = d.lng;
         if (d.town) wp.town = d.town;
         if (d.grade !== null) wp.grade = d.grade;
+        if (wp.img === null && d.img !== null) wp.img = d.img;
         for (const t of d.tags) {
           wp.tagIds.add(t.termId);
           if (!facetTags.has(t.termId) && !detailTags.has(t.termId)) {
@@ -184,6 +198,7 @@ async function main(): Promise<void> {
         console.log(`[enrich] ${done}/${targets.length} (${fetchStats.network} network, ${fetchStats.cached} cached)`);
       }
     }
+    console.log(`[enrich] dropped ${listPagesDropped} listing pages misfiled as places`);
   }
 
   // ---- Injection flags: fail unless reviewed ------------------------------
@@ -316,6 +331,7 @@ async function main(): Promise<void> {
       tags: [...wp.tagIds].sort((a, b) => a - b),
       u: wp.path,
       s: wp.summary,
+      img: wp.img,
     }));
 
   // Integrity: every record path canonical, every tag id known.
@@ -417,6 +433,7 @@ function ingestCards(
       tagIds: new Set(),
       path: card.path,
       summary: '',
+      img: card.img,
     });
   }
 }

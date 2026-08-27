@@ -6,4 +6,21 @@
    safety net so a style regression cannot produce a 0-height map. */
 .leaflet-container {
   min-height: 320px;
+  font-family: var(--font-slab), Georgia, serif;
+}
+
+/* myprovence.fr popup language: square corners, ink text, no chrome. */
+.leaflet-popup-content-wrapper {
+  border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 39, 49, 0.25);
+}
+.leaflet-popup-content {
+  margin: 10px 12px;
+}
+
+/* Display type helper: the uppercase letterspaced voice of the brand. */
+.display-caps {
+  font-family: var(--font-display), 'Arial Black', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }

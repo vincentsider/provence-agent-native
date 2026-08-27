@@ -256,6 +256,7 @@ export class Store {
       lat: p.lat,
       lng: p.lng,
       summary: p.s,
+      image: p.img ? `https://${CANONICAL_HOST}${p.img}` : null,
     };
   }
 }

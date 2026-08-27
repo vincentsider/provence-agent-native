@@ -44,6 +44,8 @@ export interface Place {
   readonly u: string;
   /** Sanitised plain-text summary, <= 280 chars. Empty until enriched. */
   readonly s: string;
+  /** First photo: site-relative path incl. style variant + itok. null if none. */
+  readonly img: string | null;
 }
 
 export interface VocabTag {
@@ -100,6 +102,8 @@ export interface PublicPlace {
   readonly lat: number | null;
   readonly lng: number | null;
   readonly summary: string;
+  /** Absolute photo URL on myprovence.fr, or null. */
+  readonly image: string | null;
 }
 
 export interface FilterInput {

@@ -1,10 +1,17 @@
 'use client';
 
+/**
+ * Result cards in the myprovence.fr card language: photo on top, uppercase
+ * display title, town in slab serif, coral category line, flat square
+ * corners, no card chrome. Photos are the site's own catalogue images
+ * (hotlinked with approval; CSP img-src allows only that host).
+ */
+
 import { useTranslations } from 'next-intl';
 import type { Store, ViewState } from '@/lib/store';
 import { CANONICAL_HOST, CLUSTERS } from '@/lib/types';
 
-const LIST_CAP = 60;
+const LIST_CAP = 40;
 
 export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
   const t = useTranslations('list');
@@ -14,46 +21,64 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
   const shown = view.highlighted.slice(0, LIST_CAP);
 
   return (
-    <section aria-label="Résultats">
-      <div className="mb-2 flex items-baseline justify-between text-xs text-stone-500">
-        <span data-testid="highlighted-count">{view.highlighted.length}</span>
-        <span>{tf('shown', { shown: shown.length, total: view.total })}</span>
+    <section aria-label="Résultats" className="min-w-0">
+      <div className="mb-3 flex items-baseline justify-between font-slab text-[13px] text-brand-ink/60">
+        <span>
+          <span data-testid="highlighted-count">{view.highlighted.length}</span>
+          {' · '}
+          {tf('shown', { shown: shown.length, total: view.total })}
+        </span>
         {view.lastActor === 'agent' && (
-          <span className="rounded bg-violet-100 px-2 py-0.5 text-violet-800">
+          <span className="bg-brand-petrol px-2 py-0.5 font-semibold text-brand-yellow">
             {t('agentDrove')}
           </span>
         )}
       </div>
-      <ul className="grid gap-3 sm:grid-cols-2">
+
+      <ul className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
         {shown.map((i) => {
           const p = places[i];
           if (!p) return null;
           const clusterKey = CLUSTERS[p.c]?.key;
+          const href = `https://${CANONICAL_HOST}${p.u}`;
           return (
-            <li
-              key={p.id}
-              className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="min-w-0 truncate font-medium">{p.n}</h3>
-                {p.g !== null && (
-                  <span className="shrink-0 text-xs text-amber-600">
-                    {t('stars', { count: p.g })}
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 text-xs text-stone-500">
-                {clusterKey ? tc(clusterKey) : ''}
-                {p.t >= 0 && store.vocab.towns[p.t] ? ` · ${store.vocab.towns[p.t]}` : ''}
-              </p>
-              {p.s && <p className="mt-2 line-clamp-3 text-sm text-stone-600">{p.s}</p>}
+            <li key={p.id}>
               <a
-                href={`https://${CANONICAL_HOST}${p.u}`}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-block text-xs text-teal-700 underline hover:text-teal-900"
+                className="group block"
               >
-                {t('viewOnSite')}
+                <div className="aspect-[4/3] w-full overflow-hidden bg-brand-paper">
+                  {p.img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`https://${CANONICAL_HOST}${p.img}`}
+                      alt=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-brand-petrol">
+                      <span className="display-caps text-5xl text-brand-yellow/80">
+                        {p.n.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <h3 className="display-caps mt-3 text-[15px] leading-snug text-brand-ink group-hover:text-brand-red">
+                  {p.n}
+                </h3>
+                <p className="mt-1 font-slab text-[14px] text-brand-ink/70">
+                  {p.t >= 0 ? store.vocab.towns[p.t] : ''}
+                  {p.g !== null && (
+                    <span className="text-brand-ink/50"> · {t('stars', { count: p.g })}</span>
+                  )}
+                </p>
+                <p className="font-slab text-[14px] text-brand-coral">
+                  {clusterKey ? tc(clusterKey) : ''}
+                </p>
               </a>
             </li>
           );

@@ -30,8 +30,12 @@ export default defineConfig({
       },
     },
     {
+      // Same system Chrome, WITHOUT the feature flag: probes confirm
+      // document.modelContext is absent, which is exactly the S6 condition.
+      // (Bundled Chromium needs a separate multi-hundred-MB download that
+      // has no reason to exist here.)
       name: 'chromium-no-webmcp',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
   ],
   webServer: {

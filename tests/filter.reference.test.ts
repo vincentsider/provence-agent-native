@@ -41,6 +41,7 @@ function synthCatalog(n: number, seed: number): { catalog: Catalog; vocab: Vocab
       tags,
       u: `/les-guides/loisirs/ville/place-${i + 1}`,
       s: '',
+      img: null,
     });
   }
   const tags: Record<string, VocabTag> = {};

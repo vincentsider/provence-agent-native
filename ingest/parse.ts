@@ -22,6 +22,8 @@ export interface HubCard {
   readonly town: string | null;
   readonly lat: number | null;
   readonly lng: number | null;
+  /** Site-relative styled-image path (keeps the itok token Drupal requires). */
+  readonly img: string | null;
 }
 
 export interface FacetEntry {
@@ -52,6 +54,7 @@ export function parseHubPage(html: string): HubPage {
     const title = /<div class="title">([^<]+)<\/div>/.exec(block);
     const city = /<div class="teaser-city">([^<]+)<\/div>/.exec(block);
     const coords = /poi-hub-map-coordinates"\s+lat="(-?[\d.]+)"\s+lon="(-?[\d.]+)"/.exec(block);
+    const img = /<img[^>]+src="(\/sites\/default\/files\/styles\/[^"]+)"/.exec(block);
 
     const path = m[2]!;
     if (!path.startsWith('/les-guides/')) return;
@@ -62,6 +65,7 @@ export function parseHubPage(html: string): HubPage {
       town: city ? sanitizeText(city[1]!, 80) : null,
       lat: coords ? round5(Number(coords[1])) : null,
       lng: coords ? round5(Number(coords[2])) : null,
+      img: img ? decodeAmp(img[1]!) : null,
     });
   });
 
@@ -96,6 +100,13 @@ export function parseHubPage(html: string): HubPage {
 }
 
 export interface DetailPage {
+  /** True when the anchored article is a hub/listing page, not a place. */
+  readonly isListPage: boolean;
+  /** True when rel=canonical points elsewhere: a stale sitemap entry whose
+   *  page now redirects (12 such found 27 Aug; they polluted the catalogue
+   *  with the whole sub-hub facet list as their tags). */
+  readonly redirected: boolean;
+  readonly img: string | null;
   readonly name: string | null;
   readonly summary: string;
   readonly lat: number | null;
@@ -106,7 +117,7 @@ export interface DetailPage {
   readonly grade: number | null;
 }
 
-export function parseDetailPage(html: string): DetailPage {
+export function parseDetailPage(html: string, pagePath?: string): DetailPage {
   let name: string | null = null;
   let summary = '';
   let lat: number | null = null;
@@ -149,7 +160,42 @@ export function parseDetailPage(html: string): DetailPage {
     if (g) grade = Number(g[1]);
   }
 
-  return { name, summary, lat, lng, town, apidaeId, tags, grade };
+  // Anchor on the page's OWN article (about= its path): the first styled
+  // image of the whole document is frequently a related-content strip, which
+  // is how four different stables once shared one pedal-kart photo. Only the
+  // region from the anchored article onward is searched; without an anchor,
+  // no image is better than someone else's image.
+  let isListPage = false;
+  let redirected = false;
+  let img: string | null = null;
+  if (pagePath) {
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(html);
+    if (canonical) {
+      try {
+        const canonicalPath = new URL(canonical[1]!, 'https://www.myprovence.fr').pathname;
+        redirected = canonicalPath.replace(/\/$/, '') !== pagePath.replace(/\/$/, '');
+      } catch {
+        // Unparseable canonical: treat as its own page.
+      }
+    }
+    const escaped = pagePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const anchor = new RegExp(
+      `<article[^>]+about="${escaped}"[^>]*class="([^"]*)"`,
+    ).exec(html);
+    if (anchor) {
+      isListPage = anchor[1]!.includes('poi-hub-map');
+      const region = html.slice(anchor.index, anchor.index + 60_000);
+      const imgM = /<img[^>]+src="(\/sites\/default\/files\/styles\/[^"]+)"/.exec(region);
+      if (imgM) img = decodeAmp(imgM[1]!);
+    }
+  }
+
+  return { isListPage, redirected, img, name, summary, lat, lng, town, apidaeId, tags, grade };
+}
+
+/** src attributes HTML-escape the itok query separator. */
+function decodeAmp(s: string): string {
+  return s.replace(/&amp;/g, '&');
 }
 
 /**
@@ -173,11 +219,14 @@ export function pathToName(path: string): string {
     .join(' ');
 }
 
-/** Town from the URL when the card lacks one: .../<cluster>/<town>/<slug>. */
+/** Town from the URL when the card lacks one. Hotel paths are
+ *  .../<cluster>/<town>/<slug>; loisirs paths insert a subcategory first
+ *  (.../loisirs/<subcat>/<town>/<slug>), so the town is always the
+ *  second-to-last segment, never the first. */
 export function pathToTown(path: string, clusterPath: string): string | null {
   const rest = path.replace(`/les-guides/${clusterPath}/`, '');
   const segments = rest.split('/').filter(Boolean);
-  return segments.length >= 2 ? pathToName(`/${segments[0]!}`) : null;
+  return segments.length >= 2 ? pathToName(`/${segments[segments.length - 2]!}`) : null;
 }
 
 function round5(n: number): number {
