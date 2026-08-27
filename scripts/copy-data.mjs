@@ -11,7 +11,7 @@
  * typed catalogue_unavailable error.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,9 +24,14 @@ if (!existsSync(path.join(source, 'manifest.json'))) {
   process.exit(0);
 }
 
-mkdirSync(target, { recursive: true });
-for (const file of readdirSync(source)) {
-  if (!file.endsWith('.json')) continue;
-  cpSync(path.join(source, file), path.join(target, file));
-}
-console.log(`[copy-data] staged ${source} -> public/data`);
+// Stage ONLY what the manifest references, into a clean target: stale
+// content-hashed artefacts from earlier builds must never ship.
+import('node:fs').then(({ rmSync, readFileSync }) => {
+  const manifest = JSON.parse(readFileSync(path.join(source, 'manifest.json'), 'utf-8'));
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(target, { recursive: true });
+  for (const file of ['manifest.json', manifest.files.catalog, manifest.files.vocab]) {
+    cpSync(path.join(source, file), path.join(target, file));
+  }
+  console.log(`[copy-data] staged ${manifest.files.catalog} + ${manifest.files.vocab} -> public/data`);
+});

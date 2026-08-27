@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { CLUSTER_KEYS } from '@/lib/types';
 
@@ -35,6 +35,10 @@ const eventSchema = z
 const bodySchema = z
   .object({ events: z.array(eventSchema).min(1).max(50) })
   .strict();
+
+/** Absolute ceiling before JSON.parse ever runs: the honest payload is a few
+ *  KB of counters; anything bigger is abuse, not telemetry. */
+const MAX_BODY_BYTES = 16 * 1024;
 
 // Best-effort token bucket per IP. Serverless instances each get their own
 // bucket; that is acceptable for an abuse brake on an aggregate endpoint.
@@ -58,6 +62,20 @@ function allow(ip: string): boolean {
   return true;
 }
 
+// One client per warm instance, not one per request.
+let cachedClient: SupabaseClient | null = null;
+let cachedFor = '';
+function getSupabase(url: string, key: string): SupabaseClient {
+  const id = `${url}:${key.length}`;
+  if (!cachedClient || cachedFor !== id) {
+    cachedClient = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    cachedFor = id;
+  }
+  return cachedClient;
+}
+
 function clientIp(request: NextRequest): string {
   const fwd = request.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0]!.trim();
@@ -72,13 +90,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return new NextResponse(null, { status: 204 });
   }
 
+  // Same-origin only. sendBeacon always attaches Origin; a third-party page
+  // beaconing junk into the aggregates gets a 403, an origin-less server
+  // client gets past this and meets the rate limiter and strict schema.
+  const origin = request.headers.get('origin');
+  if (origin) {
+    try {
+      if (new URL(origin).host !== request.nextUrl.host) {
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+  }
+
   if (!allow(clientIp(request))) {
     return NextResponse.json({ error: 'rate limited' }, { status: 429 });
   }
 
+  // Cap BEFORE parsing. Content-Length is checked when present; the raw text
+  // is measured regardless, because the header is caller-supplied.
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: 'payload too large' }, { status: 413 });
+  }
   let parsed: z.output<typeof bodySchema>;
   try {
-    parsed = bodySchema.parse(await request.json());
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: 'payload too large' }, { status: 413 });
+    }
+    parsed = bodySchema.parse(JSON.parse(text));
   } catch {
     return NextResponse.json({ error: 'invalid payload' }, { status: 400 });
   }
@@ -100,10 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     occurred_hour: occurredHour.toISOString(),
   }));
 
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { error } = await supabase.from('webmcp_demand_events').insert(rows);
+  const { error } = await getSupabase(url, key).from('webmcp_demand_events').insert(rows);
   if (error) {
     // Telemetry failure is not the caller's problem; log without payload.
     console.error('webmcp_demand_events insert failed:', error.code);

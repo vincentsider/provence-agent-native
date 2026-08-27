@@ -255,6 +255,25 @@ async function main(): Promise<void> {
     if (!c || !tags[String(alias)]) continue;
     tags[String(canonical)] = { ...c, aliases: [...(c.aliases ?? []), alias] };
   }
+
+  // A canonical tag's population must describe what a FILTER on it returns,
+  // which is the union across its alias ids ("animaux-acceptes" = 463 U
+  // 20813), not the count of its own id alone. An agent doing arithmetic on
+  // explain_vocabulary must not be lied to.
+  for (const [idStr, t] of Object.entries(tags)) {
+    if (!t.aliases || t.aliases.length === 0) continue;
+    const idSet = new Set<number>([Number(idStr), ...t.aliases]);
+    let unionN = 0;
+    for (const wp of byPath.values()) {
+      for (const tagId of wp.tagIds) {
+        if (idSet.has(tagId)) {
+          unionN++;
+          break;
+        }
+      }
+    }
+    if (unionN > 0) tags[idStr] = { ...t, n: unionN };
+  }
   console.log(`[vocab] ${Object.keys(tags).length} tags, ${aliasPairs.size} alias pairs`);
 
   // ---- Towns table ---------------------------------------------------------

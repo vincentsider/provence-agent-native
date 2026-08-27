@@ -39,7 +39,7 @@ export interface HubPage {
 }
 
 const CARD_RE =
-  /<article\s+data-history-node-id="(\d+)"[^>]*about="([^"]+)"[^>]*class="[^"]*node--type--poi\s/g;
+  /<article\s+data-history-node-id="(\d+)"[^>]*about="([^"]+)"[^>]*class="[^"]*node--type--poi[\s"]/g;
 
 export function parseHubPage(html: string): HubPage {
   const cards: HubCard[] = [];

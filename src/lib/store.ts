@@ -7,6 +7,7 @@
  * off loading and exposes `ready`; tool registration must NOT await it.
  */
 
+import { aliasIds } from './vocab';
 import {
   buildIndexes,
   runFilter,
@@ -166,14 +167,17 @@ export class Store {
       return this.#catalog.places.find((p) => p.id === ref.id) ?? null;
     }
     if (ref.url !== undefined) {
-      let path = ref.url;
+      let path: string;
       try {
         const u = new URL(ref.url, `https://${CANONICAL_HOST}`);
-        if (u.hostname !== CANONICAL_HOST) return null;
-        path = u.pathname;
+        // The bare apex redirects to www in practice; accept both.
+        if (u.hostname !== CANONICAL_HOST && u.hostname !== 'myprovence.fr') return null;
+        path = decodeURIComponent(u.pathname);
       } catch {
         return null;
       }
+      // Normalise the trailing slash agents habitually append.
+      if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
       return this.#catalog.places.find((p) => p.u === path) ?? null;
     }
     return null;
@@ -212,8 +216,10 @@ export class Store {
       if (p.lat !== null) withGeo += 1;
       if (p.tags.length > 0) withTags += 1;
     }
-    const topTags = Object.values(this.#vocab.tags)
-      .filter((t) => t.n > 0)
+    const hidden = aliasIds(this.#vocab);
+    const topTags = Object.entries(this.#vocab.tags)
+      .filter(([id, t]) => t.n > 0 && !hidden.has(Number(id)))
+      .map(([, t]) => t)
       .sort((a, b) => b.n - a.n)
       .slice(0, 25)
       .map((t) => ({ slug: t.slug, label: t.label, count: t.n }));

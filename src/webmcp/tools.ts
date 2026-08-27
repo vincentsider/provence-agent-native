@@ -19,6 +19,7 @@ import { getDemandLog } from '@/lib/demand';
 import { UnknownSlugError, UnknownTownError } from '@/lib/engine';
 import { getStore, type Store } from '@/lib/store';
 import { fold } from '@/lib/types';
+import { listVocabulary } from '@/lib/vocab';
 import {
   comparePlacesInput,
   explainVocabularyInput,
@@ -117,6 +118,7 @@ function makeExecute<S extends z.ZodType>(
         });
       }
       if (err instanceof UnknownTownError) {
+        getDemandLog().record(name, { badTown: err.town }, 0, performance.now() - t0);
         return errorEnvelope({
           code: 'unknown_town',
           message: `"${err.town}" is not a town in this catalogue.`,
@@ -203,29 +205,14 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof explainVocabularyInput>, store) => {
-        const needle = input.query ? fold(input.query) : null;
-        const all = Object.entries(store.vocab.tags)
-          .map(([id, t]) => ({
-            id: Number(id),
-            slug: t.slug,
-            label: t.label,
-            vocabulary: t.vocab ?? null,
-            places: t.n,
-          }))
-          .filter(
-            (t) =>
-              needle === null ||
-              fold(t.label).includes(needle) ||
-              t.slug.includes(needle),
-          )
-          .sort((a, b) => b.places - a.places);
+        const { total, items } = listVocabulary(store.vocab, input.query, input.limit);
         return {
-          total: all.length,
+          total,
           data: {
-            total: all.length,
-            returned: Math.min(all.length, input.limit),
-            truncated: all.length > input.limit,
-            tags: all.slice(0, input.limit),
+            total,
+            returned: items.length,
+            truncated: total > items.length,
+            tags: items,
           },
         };
       },
@@ -413,28 +400,39 @@ let registered = false;
 export function registerAll(): void {
   if (registered) return;
   if (typeof document === 'undefined') return;
-  const mc = document.modelContext;
+  let mc: ModelContext | undefined;
+  try {
+    mc = document.modelContext;
+  } catch {
+    return; // a hostile/browser-quirk getter must not break the page
+  }
   if (!mc || typeof mc.registerTool !== 'function') return;
   registered = true;
 
+  // Exception-safe on BOTH paths (S6): a synchronous IDL TypeError from the
+  // browser's registerTool, or a schema-generation failure, must cost us that
+  // one tool, never the page. This module evaluates at hydration; an
+  // unhandled throw here would take the whole React tree down with it.
   for (const def of defs()) {
-    // Fire-and-forget on purpose: registration promises resolve independently
-    // and a rejection of one must not block the others.
-    void mc
-      .registerTool({
-        name: def.name,
-        title: def.title,
-        description: def.description,
-        inputSchema: toJsonSchema(def.schema),
-        annotations: {
-          readOnlyHint: def.readOnly,
-          untrustedContentHint: def.untrusted,
-        },
-        execute: def.execute,
-      })
-      .catch(() => {
-        // A failed registration leaves the human surface untouched.
-      });
+    try {
+      void mc
+        .registerTool({
+          name: def.name,
+          title: def.title,
+          description: def.description,
+          inputSchema: toJsonSchema(def.schema),
+          annotations: {
+            readOnlyHint: def.readOnly,
+            untrustedContentHint: def.untrusted,
+          },
+          execute: def.execute,
+        })
+        .catch(() => {
+          // Async rejection: this registration is lost, the rest stand.
+        });
+    } catch {
+      // Sync throw: same containment.
+    }
   }
 }
 

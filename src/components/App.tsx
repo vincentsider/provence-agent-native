@@ -25,7 +25,6 @@ const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
 
 export function App() {
   const t = useTranslations('app');
-  const tc = useTranslations('clusters');
   const locale = useLocale();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
