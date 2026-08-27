@@ -1,0 +1,47 @@
+{
+  "app": {
+    "title": "Provence, lisible par les agents",
+    "subtitle": "Les cinq guides de myprovence.fr, ouverts aux humains et aux IA sur la même page.",
+    "sourceNote": "Contenus : Provence Tourisme (myprovence.fr), instantané du {date}. Chaque fiche renvoie vers la page d'origine.",
+    "loading": "Chargement du catalogue…",
+    "loadError": "Le catalogue n'a pas pu être chargé. La page reste consultable, les outils répondront une fois le catalogue disponible.",
+    "webmcpActive": "Outils de site actifs : un agent IA peut interroger ce catalogue.",
+    "webmcpInactive": "Navigateur sans WebMCP : la page fonctionne normalement, sans outils d'agent."
+  },
+  "clusters": {
+    "all": "Tout",
+    "hotels": "Hôtels",
+    "campings": "Campings",
+    "chambres-d-hotes": "Chambres d'hôtes",
+    "loisirs": "Loisirs",
+    "itineraires": "Itinéraires"
+  },
+  "filters": {
+    "title": "Filtres",
+    "searchTags": "Chercher un critère…",
+    "clear": "Tout effacer",
+    "results": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+    "town": "Ville",
+    "allTowns": "Toutes les villes",
+    "shown": "{shown} affichés sur {total}"
+  },
+  "list": {
+    "viewOnSite": "Voir sur myprovence.fr",
+    "stars": "{count, plural, one {# étoile} other {# étoiles}}",
+    "showMore": "Afficher plus",
+    "agentDrove": "Résultat affiché par l'agent"
+  },
+  "mirror": {
+    "title": "Miroir de la demande",
+    "empty": "Aucun appel d'agent pour l'instant. Ouvrez cette page dans un navigateur compatible WebMCP et posez une question à l'IA.",
+    "results": "{count, plural, =0 {0 résultat} one {# résultat} other {# résultats}}",
+    "zeroTitle": "Demande sans réponse",
+    "zeroLine": "{count, plural, one {# requête d'agent n'a rien trouvé cette session.} other {# requêtes d'agent n'ont rien trouvé cette session.}}",
+    "zeroExplain": "Chaque ligne est une demande réelle que le catalogue n'a pas pu satisfaire : une offre qui manque, mesurée au lieu d'être devinée.",
+    "calls": "{count} appels cette session"
+  },
+  "footer": {
+    "credit": "Démonstration GeoTravel.ai. Code open source ; les contenus restent la propriété de Provence Tourisme et renvoient vers myprovence.fr.",
+    "notIndex": "Page de démonstration, non indexée."
+  }
+}

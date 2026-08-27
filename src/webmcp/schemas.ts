@@ -1,0 +1,153 @@
+/**
+ * Tool input schemas. Zod is the single definition; the JSON Schema the agent
+ * reads is derived from it (z.toJSONSchema), so the two cannot drift.
+ *
+ * Every schema is .strict(): an open object is an exfiltration channel — a
+ * confused or compromised agent can smuggle arbitrary payloads through an
+ * ignored property. Unknown keys are a rejection, not an ignore.
+ *
+ * No tool accepts a URL (get_place validates against the canonical host),
+ * path, selector or template. Nothing in this surface can be made to address
+ * something other than a catalogue record.
+ */
+
+import { z } from 'zod';
+import { CLUSTER_KEYS } from '@/lib/types';
+
+const clusterEnum = z
+  .enum(CLUSTER_KEYS)
+  .describe('One of the five myProvence guide clusters.');
+
+const tagSlug = z.string().min(1).max(64);
+
+export const filterPlacesInput = z
+  .object({
+    cluster: clusterEnum
+      .optional()
+      .describe('Restrict to one cluster. Omit to search all 2798 places.'),
+    tags: z
+      .array(tagSlug)
+      .max(12)
+      .optional()
+      .describe(
+        'Tag slugs, ALL of which must be present. Example: ' +
+          '["parking","animaux-acceptes"]. Call explain_vocabulary for the full list.',
+      ),
+    anyTags: z
+      .array(tagSlug)
+      .max(12)
+      .optional()
+      .describe('Tag slugs, ANY of which is enough.'),
+    town: z
+      .string()
+      .min(1)
+      .max(80)
+      .optional()
+      .describe('Town name, e.g. "Marseille". Matched case- and accent-insensitively.'),
+    minGrade: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe('Minimum star rating (hotels).'),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(40)
+      .default(20)
+      .describe('Maximum results. Hard cap 40 to keep the response small.'),
+    offset: z.number().int().min(0).max(5000).default(0),
+  })
+  .strict();
+
+export const explainVocabularyInput = z
+  .object({
+    query: z
+      .string()
+      .min(1)
+      .max(80)
+      .optional()
+      .describe('Optional label/slug fragment to search for, e.g. "piscine".'),
+    limit: z.number().int().min(1).max(100).default(40),
+  })
+  .strict();
+
+export const getPlaceInput = z
+  .object({
+    id: z.number().int().optional().describe('The place id, from filter_places results.'),
+    url: z
+      .string()
+      .min(1)
+      .max(300)
+      .optional()
+      .describe('A myprovence.fr page URL or path, e.g. "/les-guides/hebergements/hotels/...".'),
+  })
+  .strict()
+  .refine((v) => v.id !== undefined || v.url !== undefined, {
+    message: 'Provide id or url.',
+  });
+
+export const comparePlacesInput = z
+  .object({
+    ids: z
+      .array(z.number().int())
+      .min(2)
+      .max(5)
+      .describe('2 to 5 place ids to compare side by side.'),
+  })
+  .strict();
+
+export const findNearInput = z
+  .object({
+    town: z
+      .string()
+      .min(1)
+      .max(80)
+      .optional()
+      .describe('Centre on a known town, e.g. "Cassis".'),
+    lat: z.number().min(42.5).max(44.5).optional(),
+    lng: z.number().min(3.5).max(7.5).optional(),
+    radiusKm: z.number().min(0.5).max(80).default(15),
+    cluster: clusterEnum.optional(),
+    limit: z.number().int().min(1).max(40).default(20),
+  })
+  .strict()
+  .refine((v) => v.town !== undefined || (v.lat !== undefined && v.lng !== undefined), {
+    message: 'Provide town, or lat and lng.',
+  });
+
+export const getCatalogStatsInput = z.object({}).strict();
+
+export const setViewInput = z
+  .object({
+    lat: z.number().min(42.5).max(44.5),
+    lng: z.number().min(3.5).max(7.5),
+    zoom: z.number().int().min(7).max(17).default(11),
+  })
+  .strict();
+
+export const highlightPlacesInput = z
+  .object({
+    ids: z
+      .array(z.number().int())
+      .min(1)
+      .max(80)
+      .describe('Place ids to highlight on the shared map and list.'),
+  })
+  .strict();
+
+export const getAgentDemandInput = z
+  .object({
+    zeroResultsOnly: z
+      .boolean()
+      .default(false)
+      .describe('Return only the requests that found nothing.'),
+  })
+  .strict();
+
+/** JSON Schema (draft-7) for the agent, derived — never hand-written. */
+export function toJsonSchema(schema: z.ZodType): object {
+  return z.toJSONSchema(schema, { target: 'draft-7', io: 'input' }) as object;
+}

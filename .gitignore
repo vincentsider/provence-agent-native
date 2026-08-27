@@ -1,0 +1,23 @@
+# deps / build
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# The catalogue never enters the repository (spec §13.2):
+# built by CI, uploaded to the deployment, served from DATA_URL.
+data-out/
+public/data/
+ingest/.cache/
+build/flagged-content.json
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# test output
+coverage/
+playwright-report/
+test-results/

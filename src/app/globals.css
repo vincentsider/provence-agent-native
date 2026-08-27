@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet needs a sized container; the component enforces it, this is the
+   safety net so a style regression cannot produce a 0-height map. */
+.leaflet-container {
+  min-height: 320px;
+}
