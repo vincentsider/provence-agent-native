@@ -86,6 +86,8 @@ async function main(): Promise<void> {
 
   const byNodeId = new Map<number, WorkingPlace>();
   const facetTags = new Map<number, { label: string; count: number; vocab?: string }>();
+  /** alias term id -> canonical term id, from same-hub facet evidence. */
+  const aliasPairs = new Map<number, number>();
   const detailTags = new Map<number, string>();
   const flags: Array<Flag & { where: string }> = [];
 
@@ -101,6 +103,7 @@ async function main(): Promise<void> {
 
     ingestCards(byNodeId, first.cards, clusterIdx, cluster.path);
     ingestFacets(facetTags, first.facets);
+    detectHubAliasPairs(first.facets, aliasPairs);
 
     for (let pg = 2; pg <= pages; pg++) {
       const html = await fetchCached(`${BASE}/${cluster.path}?pg=${pg}`);
@@ -242,41 +245,17 @@ async function main(): Promise<void> {
     };
   }
 
-  // Alias detection: identical population + one folded label containing the
-  // other ("Acceptés"/"Animaux acceptés", "Terrasse"/"Avec terrasse"). The
-  // longer label is canonical; the shorter becomes its alias.
-  const byCount = new Map<number, number[]>();
-  for (const [idStr, t] of Object.entries(tags)) {
-    if (t.n === 0) continue;
-    const list = byCount.get(t.n) ?? [];
-    list.push(Number(idStr));
-    byCount.set(t.n, list);
+  // Alias wiring from hub evidence (detectHubAliasPairs): the same criterion
+  // exists under different term ids per surface ("Animaux acceptés" 463 on
+  // the facet, bare "Acceptés" 20813 on hotel detail pages; "Piscine" twice).
+  // The pairs are proven by identical counts on the SAME hub page plus label
+  // containment, never by globally recomputed populations, which diverge.
+  for (const [alias, canonical] of aliasPairs) {
+    const c = tags[String(canonical)];
+    if (!c || !tags[String(alias)]) continue;
+    tags[String(canonical)] = { ...c, aliases: [...(c.aliases ?? []), alias] };
   }
-  const aliasOf = new Map<number, number>();
-  for (const ids of byCount.values()) {
-    if (ids.length < 2) continue;
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const a = tags[String(ids[i])]!;
-        const b = tags[String(ids[j])]!;
-        const fa = slugify(a.label);
-        const fb = slugify(b.label);
-        if (fa === fb || fa.includes(fb) || fb.includes(fa)) {
-          const [canonical, alias] =
-            a.label.length >= b.label.length ? [ids[i]!, ids[j]!] : [ids[j]!, ids[i]!];
-          if (!aliasOf.has(alias) && !aliasOf.has(canonical)) aliasOf.set(alias, canonical);
-        }
-      }
-    }
-  }
-  for (const [alias, canonical] of aliasOf) {
-    const c = tags[String(canonical)]!;
-    tags[String(canonical)] = {
-      ...c,
-      aliases: [...(c.aliases ?? []), alias],
-    };
-  }
-  console.log(`[vocab] ${Object.keys(tags).length} tags, ${aliasOf.size} alias pairs`);
+  console.log(`[vocab] ${Object.keys(tags).length} tags, ${aliasPairs.size} alias pairs`);
 
   // ---- Towns table ---------------------------------------------------------
   const townIndex = new Map<string, number>();
@@ -420,6 +399,35 @@ function ingestCards(
       path: card.path,
       summary: '',
     });
+  }
+}
+
+/**
+ * Same-hub facet pairs with identical counts and slug containment are the
+ * same criterion under two term ids. Guard: a "non-X"/"sans-X" label must
+ * never merge with "X" (opposite meaning, and "non-acceptes" contains
+ * "acceptes"). The longer label is canonical.
+ */
+function detectHubAliasPairs(
+  facets: FacetEntry[],
+  aliasPairs: Map<number, number>,
+): void {
+  const negated = (slug: string) => slug.startsWith('non-') || slug.startsWith('sans-');
+  for (let i = 0; i < facets.length; i++) {
+    for (let j = i + 1; j < facets.length; j++) {
+      const a = facets[i]!;
+      const b = facets[j]!;
+      if (a.termId === b.termId || a.count !== b.count || a.count === 0) continue;
+      const sa = slugify(a.label);
+      const sb = slugify(b.label);
+      if (!(sa === sb || sa.includes(sb) || sb.includes(sa))) continue;
+      if (negated(sa) !== negated(sb)) continue;
+      const [canonical, alias] =
+        a.label.length >= b.label.length ? [a.termId, b.termId] : [b.termId, a.termId];
+      if (!aliasPairs.has(alias) && !aliasPairs.has(canonical) && alias !== canonical) {
+        aliasPairs.set(alias, canonical);
+      }
+    }
   }
 }
 

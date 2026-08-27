@@ -227,8 +227,18 @@ export class Store {
     };
   }
 
-  /** The single choke point every outgoing record passes through (spec 8.5). */
+  /** The single choke point every outgoing record passes through (spec 8.5).
+   *  Tag ids are canonicalised (alias -> canonical slug) and deduped so an
+   *  agent always sees "animaux-acceptes", never the surface-specific
+   *  "acceptes" twin. */
   toPublicShape(p: Place): PublicPlace {
+    const alias = this.#indexes?.aliasToCanonical;
+    const slugs = new Set<string>();
+    for (const rawId of p.tags) {
+      const id = alias?.get(rawId) ?? rawId;
+      const slug = this.#vocab.tags[String(id)]?.slug;
+      if (slug) slugs.add(slug);
+    }
     return {
       id: p.id,
       name: p.n,
@@ -236,9 +246,7 @@ export class Store {
       town: p.t >= 0 ? (this.#vocab.towns[p.t] ?? null) : null,
       url: `https://${CANONICAL_HOST}${p.u}`,
       grade: p.g,
-      tags: p.tags
-        .map((id) => this.#vocab.tags[String(id)]?.slug)
-        .filter((s): s is string => s !== undefined),
+      tags: [...slugs],
       lat: p.lat,
       lng: p.lng,
       summary: p.s,

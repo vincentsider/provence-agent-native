@@ -151,7 +151,10 @@ describe('runFilter vs reference', () => {
 });
 
 describe('alias resolution', () => {
-  it('an alias slug resolves to the canonical postings', () => {
+  it('canonical and alias slugs both search the UNION of both ids', () => {
+    // Real-world shape: the same criterion lives under two term ids on
+    // different surfaces (463 "Animaux acceptés" vs 20813 "Acceptés"), so a
+    // redirect-only alias silently misses whole clusters. Union is required.
     const { catalog, vocab } = synthCatalog(500, 7);
     const canonical = vocab.tags['100']!;
     const aliased: Vocab = {
@@ -162,9 +165,14 @@ describe('alias resolution', () => {
       },
     };
     const idx = buildIndexes(catalog, aliased);
-    const viaCanonical = runFilter(catalog, idx, { tags: ['tag-100'], limit: 40, offset: 0 });
-    const viaAlias = runFilter(catalog, idx, { tags: ['tag-101'], limit: 40, offset: 0 });
-    expect(viaAlias.total).toBe(viaCanonical.total);
-    expect([...viaAlias.indices]).toEqual([...viaCanonical.indices]);
+    const expectedUnion = catalog.places
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => p.tags.includes(100) || p.tags.includes(101))
+      .map(({ i }) => i);
+    const viaCanonical = runFilter(catalog, idx, { tags: ['tag-100'], limit: 500, offset: 0 });
+    const viaAlias = runFilter(catalog, idx, { tags: ['tag-101'], limit: 500, offset: 0 });
+    expect(viaCanonical.total).toBe(expectedUnion.length);
+    expect([...viaCanonical.indices]).toEqual(expectedUnion);
+    expect([...viaAlias.indices]).toEqual(expectedUnion);
   });
 });

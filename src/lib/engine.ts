@@ -33,6 +33,8 @@ export interface Indexes {
   readonly grid: ReadonlyMap<string, Uint16Array>;
   /** record indices per cluster */
   readonly byCluster: readonly Uint16Array[];
+  /** alias term id -> canonical term id (display normalisation). */
+  readonly aliasToCanonical: ReadonlyMap<number, number>;
 }
 
 export const GRID_CELL_DEG = 0.05;
@@ -79,6 +81,26 @@ export function buildIndexes(catalog: Catalog, vocab: Vocab): Indexes {
   const grid = new Map<string, Uint16Array>();
   for (const [k, list] of gridLists) grid.set(k, Uint16Array.from(list));
 
+  // Alias semantics are UNION, not redirect: the same criterion lives under
+  // different term ids per surface (hotel detail pages emit 20813 "Acceptés"
+  // where the facet says 463 "Animaux acceptés"), so the canonical id's
+  // postings must cover every alias id's postings or a filter on the
+  // canonical silently misses whole clusters.
+  const aliasToCanonical = new Map<number, number>();
+  for (const [idStr, tag] of Object.entries(vocab.tags)) {
+    const canonical = Number(idStr);
+    for (const aliasId of tag.aliases ?? []) aliasToCanonical.set(aliasId, canonical);
+  }
+  for (const [aliasId, canonical] of aliasToCanonical) {
+    const aliasPostings = postings.get(aliasId);
+    if (!aliasPostings || aliasPostings.length === 0) continue;
+    const own = postings.get(canonical);
+    postings.set(
+      canonical,
+      own && own.length > 0 ? unionAll([own, aliasPostings]) : aliasPostings,
+    );
+  }
+
   const townByFold = new Map<string, number>();
   vocab.towns.forEach((t, i) => townByFold.set(fold(t), i));
 
@@ -103,6 +125,7 @@ export function buildIndexes(catalog: Catalog, vocab: Vocab): Indexes {
     idBySlug,
     grid,
     byCluster: clusterLists.map((l) => Uint16Array.from(l)),
+    aliasToCanonical,
   };
 }
 

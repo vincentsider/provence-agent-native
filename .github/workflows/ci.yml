@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+      - run: npx tsc --noEmit
+      - run: npx jest --ci
+      - run: npm run build
+        env:
+          # CI builds without the catalogue; copy-data warns and the app
+          # ships its catalogue-unavailable state. Deploys attach DATA_DIR.
+          NEXT_TELEMETRY_DISABLED: '1'
+      # Guard: no artefact may embed a secret-shaped value (spec 8.8).
+      - name: assert no secrets in build output
+        run: |
+          ! grep -rE "(service_role|sk-[A-Za-z0-9]{20,}|SUPABASE_SERVICE_ROLE_KEY=ey)" .next/static || (echo "secret-shaped string in client bundle" && exit 1)
