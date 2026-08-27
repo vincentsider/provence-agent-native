@@ -5,8 +5,9 @@
     "sourceNote": "Contenus : Provence Tourisme (myprovence.fr), instantané du {date}. Chaque fiche renvoie vers la page d'origine.",
     "loading": "Chargement du catalogue…",
     "loadError": "Le catalogue n'a pas pu être chargé. La page reste consultable, les outils répondront une fois le catalogue disponible.",
-    "webmcpActive": "Outils de site actifs : un agent IA peut interroger ce catalogue.",
-    "webmcpInactive": "Navigateur sans WebMCP : la page fonctionne normalement, sans outils d'agent."
+    "webmcpActive": "Outils de site actifs : {count} outils exposés aux agents IA.",
+    "webmcpInactive": "Navigateur sans WebMCP : la page fonctionne normalement, sans outils d'agent.",
+    "webmcpPartial": "Outils de site : {ok} enregistrés, {failed} refusés par le navigateur."
   },
   "clusters": {
     "all": "Tout",

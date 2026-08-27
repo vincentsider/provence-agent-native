@@ -5,8 +5,9 @@
     "sourceNote": "Content: Provence Tourisme (myprovence.fr), snapshot of {date}. Every card links back to its original page.",
     "loading": "Loading the catalogue…",
     "loadError": "The catalogue could not be loaded. The page stays usable; tools will answer once the catalogue is available.",
-    "webmcpActive": "Site tools active: an AI agent can query this catalogue.",
-    "webmcpInactive": "Browser without WebMCP: the page works normally, without agent tools."
+    "webmcpActive": "Site tools active: {count} tools exposed to AI agents.",
+    "webmcpInactive": "Browser without WebMCP: the page works normally, without agent tools.",
+    "webmcpPartial": "Site tools: {ok} registered, {failed} rejected by the browser."
   },
   "clusters": {
     "all": "All",

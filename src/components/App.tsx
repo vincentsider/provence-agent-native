@@ -10,6 +10,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { registerAll } from '@/webmcp/tools';
+import { getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
 import { FacetPanel, type UiFilter } from './FacetPanel';
@@ -40,18 +41,47 @@ export function App() {
   return <Loaded locale={locale} />;
 }
 
+function WebMcpBadge() {
+  const t = useTranslations('app');
+  const status = useSyncExternalStore(
+    subscribeWebMcpStatus,
+    getWebMcpStatus,
+    getWebMcpStatus,
+  );
+  // The badge reports what actually happened, not what should have: a green
+  // "active" pill over zero registered tools once made a field failure in
+  // ChatGPT's browser undiagnosable from a screenshot.
+  const count = status.verified ?? status.registered;
+  let text: string;
+  let tone: string;
+  if (!status.supported) {
+    text = t('webmcpInactive');
+    tone = 'bg-stone-200 text-stone-600';
+  } else if (status.failed.length > 0 || (status.verified !== null && status.verified < 9)) {
+    text = t('webmcpPartial', { ok: count, failed: 9 - count });
+    tone = 'bg-amber-100 text-amber-800';
+  } else {
+    text = t('webmcpActive', { count });
+    tone = 'bg-emerald-100 text-emerald-800';
+  }
+  return (
+    <span data-testid="webmcp-status" className={'rounded-full px-3 py-1 text-xs ' + tone}>
+      {text}
+    </span>
+  );
+}
+
 function Header({
   locale,
   title,
   subtitle,
-  webmcp,
+  showBadge,
 }: {
   locale: string;
   title: string;
   subtitle: string;
-  webmcp?: boolean;
+  showBadge?: boolean;
 }) {
-  const t = useTranslations('app');
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -59,17 +89,7 @@ function Header({
         <p className="mt-1 max-w-2xl text-sm text-stone-600">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {webmcp !== undefined && (
-          <span
-            data-testid="webmcp-status"
-            className={
-              'rounded-full px-3 py-1 text-xs ' +
-              (webmcp ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600')
-            }
-          >
-            {webmcp ? t('webmcpActive') : t('webmcpInactive')}
-          </span>
-        )}
+        {showBadge && <WebMcpBadge />}
         <nav aria-label="Language" className="flex gap-2">
           {['fr', 'en'].map((l) => (
             <a
@@ -96,9 +116,6 @@ function Loaded({ locale }: { locale: string }) {
   const store = getStore();
   const view: ViewState = useSyncExternalStore(store.subscribe, store.getView, store.getView);
   const [filter, setFilter] = useState<UiFilter>(EMPTY_FILTER);
-  const [webmcp] = useState(
-    () => typeof document !== 'undefined' && !!document.modelContext,
-  );
 
   // Human-driven filtering goes through the exact same store call the agent
   // uses; the map and list cannot diverge between the two actors.
@@ -124,7 +141,7 @@ function Loaded({ locale }: { locale: string }) {
 
   return (
     <main className="mx-auto max-w-7xl p-6">
-      <Header locale={locale} title={t('title')} subtitle={t('subtitle')} webmcp={webmcp} />
+      <Header locale={locale} title={t('title')} subtitle={t('subtitle')} showBadge />
 
       {view.loadState === 'error' && (
         <p className="mt-6 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

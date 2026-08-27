@@ -77,9 +77,11 @@ function garbage(): unknown {
 }
 
 describe('generated JSON Schemas', () => {
-  it.each(ALL)('%s emits a draft-7 object schema', (_name, schema) => {
+  it.each(ALL)('%s emits a plain object schema without $schema', (_name, schema) => {
     const json = toJsonSchema(schema) as Record<string, unknown>;
-    expect(json.$schema).toContain('draft-07');
+    // $schema is stripped on purpose: strict host validators (field-tested
+    // against ChatGPT's browser) must never reject the tool over it.
+    expect(json.$schema).toBeUndefined();
     expect(json.type).toBe('object');
     // strict objects must forbid extra properties in the emitted schema too
     expect(json.additionalProperties).toBe(false);

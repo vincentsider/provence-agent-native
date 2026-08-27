@@ -147,7 +147,15 @@ export const getAgentDemandInput = z
   })
   .strict();
 
-/** JSON Schema (draft-7) for the agent, derived — never hand-written. */
+/** JSON Schema for the agent, derived (draft-7 structure) — never
+ *  hand-written. The $schema marker is stripped: MCP-style inputSchema
+ *  conventionally omits it, and a strict host validator rejecting the extra
+ *  key would silently cost us the whole tool. */
 export function toJsonSchema(schema: z.ZodType): object {
-  return z.toJSONSchema(schema, { target: 'draft-7', io: 'input' }) as object;
+  const json = z.toJSONSchema(schema, { target: 'draft-7', io: 'input' }) as Record<
+    string,
+    unknown
+  >;
+  delete json.$schema;
+  return json;
 }

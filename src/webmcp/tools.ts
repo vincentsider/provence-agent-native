@@ -20,6 +20,7 @@ import { UnknownSlugError, UnknownTownError } from '@/lib/engine';
 import { getStore, type Store } from '@/lib/store';
 import { fold } from '@/lib/types';
 import { listVocabulary } from '@/lib/vocab';
+import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   comparePlacesInput,
   explainVocabularyInput,
@@ -409,13 +410,17 @@ export function registerAll(): void {
   if (!mc || typeof mc.registerTool !== 'function') return;
   registered = true;
 
+  patchWebMcpStatus({ supported: true });
+
   // Exception-safe on BOTH paths (S6): a synchronous IDL TypeError from the
   // browser's registerTool, or a schema-generation failure, must cost us that
   // one tool, never the page. This module evaluates at hydration; an
   // unhandled throw here would take the whole React tree down with it.
-  for (const def of defs()) {
+  // Every outcome is RECORDED (webmcp/status.ts): a silent failure once made
+  // a field test undiagnosable.
+  const all = defs().map((def) => {
     try {
-      void mc
+      return mc
         .registerTool({
           name: def.name,
           title: def.title,
@@ -427,13 +432,31 @@ export function registerAll(): void {
           },
           execute: def.execute,
         })
-        .catch(() => {
-          // Async rejection: this registration is lost, the rest stand.
-        });
-    } catch {
-      // Sync throw: same containment.
+        .then(
+          () => recordRegistration(true, def.name),
+          (err: unknown) => recordRegistration(false, def.name, String(err).slice(0, 200)),
+        );
+    } catch (err) {
+      recordRegistration(false, def.name, String(err).slice(0, 200));
+      return Promise.resolve();
     }
-  }
+  });
+
+  // After everything settles, ask the browser what IT thinks is registered.
+  // getTools() is optional in some implementations; null means "not checkable".
+  void Promise.allSettled(all).then(async () => {
+    try {
+      if (typeof mc.getTools === 'function') {
+        const names = new Set(defs().map((d) => d.name));
+        const visible = (await mc.getTools()).filter((t) => names.has(t.name)).length;
+        patchWebMcpStatus({ verified: visible });
+        // eslint-disable-next-line no-console
+        console.info(`[webmcp] ${visible}/9 site tools verified via getTools()`);
+      }
+    } catch {
+      patchWebMcpStatus({ verified: null });
+    }
+  });
 }
 
 /** Exported for tests: the tool definitions without side effects. */
