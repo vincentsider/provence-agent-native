@@ -31,6 +31,7 @@ const eventSchema = z
     // that args_summary is free-shape jsonb under a 2048-byte check, so no
     // migration accompanies these keys.
     category: z.string().min(1).max(64).optional(),
+    town: z.string().min(1).max(80).optional(),
     month: z
       .string()
       .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ...(e.minGrade !== undefined ? { minGrade: e.minGrade } : {}),
       ...(e.category ? { category: e.category } : {}),
       ...(e.month ? { month: e.month } : {}),
+      ...(e.town ? { town: e.town } : {}),
     },
     result_total: e.resultTotal,
     zero_result: e.zeroResult,

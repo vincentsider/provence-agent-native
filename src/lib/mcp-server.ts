@@ -33,6 +33,7 @@ import { listVocabulary } from './vocab';
 import { toPublicShape } from './public-shape';
 import { CANONICAL_HOST, CLUSTERS, categoryOf, fold } from './types';
 import type { ServerCatalog } from './server-catalog';
+import type { PulseData } from './demand-pulse';
 
 const PROTOCOL_VERSION = '2025-03-26';
 
@@ -261,11 +262,24 @@ export function mcpToolCount(): number {
   return TOOLS.length;
 }
 
+export interface McpExtras {
+  /** Server-side pulse fetcher; when present, get_demand_pulse is exposed. */
+  readonly demandPulse?: () => Promise<PulseData>;
+}
+
+const PULSE_TOOL = {
+  name: 'get_demand_pulse',
+  description:
+    "The destination's live agent demand aggregated by town over 7 days (counters only, " +
+    'k-anonymized): what agents asked for, and which requests found nothing.',
+};
+
 /** Handle one JSON-RPC message. Returns null for notifications (no reply). */
-export function handleMcpMessage(
+export async function handleMcpMessage(
   message: JsonRpcRequest,
   sc: ServerCatalog,
-): JsonRpcResponse {
+  extras: McpExtras = {},
+): Promise<JsonRpcResponse> {
   const { id, method } = message;
   if (message.jsonrpc !== '2.0' || typeof method !== 'string') {
     return rpcError(id, -32600, 'invalid request');
@@ -304,16 +318,41 @@ export function handleMcpMessage(
 
     case 'tools/list':
       return ok(id, {
-        tools: TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: toJsonSchema(t.schema),
-        })),
+        tools: [
+          ...TOOLS.map((t) => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: toJsonSchema(t.schema),
+          })),
+          ...(extras.demandPulse
+            ? [
+                {
+                  name: PULSE_TOOL.name,
+                  description: PULSE_TOOL.description,
+                  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+                },
+              ]
+            : []),
+        ],
       });
 
     case 'tools/call': {
       const params = message.params ?? {};
       const name = typeof params.name === 'string' ? params.name : '';
+      if (name === PULSE_TOOL.name && extras.demandPulse) {
+        try {
+          const pulse = await extras.demandPulse();
+          return ok(id, {
+            content: [{ type: 'text', text: JSON.stringify(pulse) }],
+            isError: false,
+          });
+        } catch {
+          return ok(id, {
+            content: [{ type: 'text', text: JSON.stringify({ error: 'pulse_unavailable' }) }],
+            isError: true,
+          });
+        }
+      }
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) return rpcError(id, -32602, `unknown tool: ${name}`);
       try {

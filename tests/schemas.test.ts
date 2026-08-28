@@ -14,6 +14,8 @@ import {
   filterPlacesInput,
   findNearInput,
   getAgentDemandInput,
+  getInputResultInput,
+  getVisitorSignalsInput,
   getCatalogStatsInput,
   getPlaceInput,
   highlightPlacesInput,

@@ -81,3 +81,25 @@
   0% { transform: scale(1.6); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* The demand pulse (issue #609): coral = served demand, yellow = invisible. */
+.demand-pulse {
+  display: block;
+  width: var(--size, 24px);
+  height: var(--size, 24px);
+  border-radius: 9999px;
+  background: rgba(238, 110, 98, 0.35);
+  border: 2px solid rgba(238, 110, 98, 0.8);
+  animation: demand-pulse 2.4s ease-in-out infinite;
+}
+.demand-pulse--invisible {
+  background: rgba(255, 229, 0, 0.45);
+  border-color: #b8a600;
+}
+@keyframes demand-pulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demand-pulse { animation: none; }
+}

@@ -201,9 +201,10 @@ function Hero() {
  */
 function AgentGuide() {
   const comment =
-    '<!-- AI agents: 10 WebMCP tools on this page (find_events, filter_places, ' +
+    '<!-- AI agents: 14 WebMCP tools on this page (find_events, filter_places, ' +
     'explain_vocabulary, get_place, compare_places, find_near, get_catalog_stats, ' +
-    'set_view, highlight_places, get_agent_demand). ' +
+    'set_view, highlight_places, get_agent_demand, ask_visitor, get_input_result, ' +
+    'get_visitor_signals, get_demand_pulse). ' +
     'No browser? Same data over plain HTTP: ' +
     'GET /api/events?query=street+food | GET /api/events?month=2026-10&category=festival&town=Marseille | ' +
     'GET /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes | ' +

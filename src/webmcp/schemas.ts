@@ -205,6 +205,8 @@ export const getInputResultInput = z
 
 export const getVisitorSignalsInput = z.object({}).strict();
 
+export const getDemandPulseInput = z.object({}).strict();
+
 export const getAgentDemandInput = z
   .object({
     zeroResultsOnly: z

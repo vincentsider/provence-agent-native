@@ -31,6 +31,9 @@ interface PendingAggregate {
   /** find_events aggregates: category slug and queried month (YYYY-MM). */
   readonly category?: string;
   readonly month?: string;
+  /** Town named in the query (a query parameter, not visitor data) — feeds
+   *  the town-level demand pulse. */
+  readonly town?: string;
   readonly resultTotal: number;
   readonly zeroResult: boolean;
 }
@@ -95,6 +98,7 @@ export class DemandLog {
         cluster: typeof args.cluster === 'string' ? args.cluster : undefined,
         minGrade: typeof args.minGrade === 'number' ? args.minGrade : undefined,
         category: typeof args.category === 'string' ? args.category.slice(0, 64) : undefined,
+        town: typeof args.town === 'string' ? args.town.slice(0, 80) : undefined,
         month:
           typeof args.month === 'string'
             ? args.month.slice(0, 7)

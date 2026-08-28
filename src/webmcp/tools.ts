@@ -1,5 +1,5 @@
 /**
- * The nine WebMCP site tools (issue #602, spec section 6).
+ * The fourteen WebMCP site tools (issues #602, #607-#609).
  *
  * Contracts that are easy to get wrong:
  *  - Registration is synchronous with module evaluation and does NOT await
@@ -23,11 +23,14 @@ import { listVocabulary } from '@/lib/vocab';
 import { getPresenceBus, intentFor } from '@/lib/presence';
 import { getElicitationStore } from '@/lib/elicitation';
 import { getSignalsLog } from '@/lib/signals';
+import { getPulseStore } from '@/lib/pulse-client';
+import type { PulseData } from '@/lib/demand-pulse';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   askVisitorInput,
   comparePlacesInput,
   findEventsInput,
+  getDemandPulseInput,
   getInputResultInput,
   getVisitorSignalsInput,
   explainVocabularyInput,
@@ -578,6 +581,34 @@ function defs(): ToolDef[] {
       },
     }),
     tool({
+      name: 'get_demand_pulse',
+      title: 'Le pouls de la demande',
+      description:
+        "The destination's live agent demand, aggregated by town over the last 7 days " +
+        '(counters only, k-anonymized). Calling it lights the demand layer on the shared ' +
+        'map: coral for served demand, bright yellow for requests that found NOTHING — ' +
+        'the invisible demand. Narrate one factual line from it, e.g. "84 asks around ' +
+        'Marseille this week; the zero-result ones are the offer gaps".',
+      schema: getDemandPulseInput,
+      readOnly: true,
+      untrusted: false,
+      handler: async () => {
+        const res = await fetch('/api/demand-pulse', { credentials: 'omit' });
+        if (!res.ok) {
+          return { total: 0, data: { error: 'pulse_unavailable' } };
+        }
+        const pulse = (await res.json()) as PulseData;
+        getPulseStore().set(pulse);
+        try {
+          getPresenceBus().emit({ phase: 'focus', target: 'map' });
+          getPresenceBus().emit({ phase: 'act', tool: 'get_demand_pulse' });
+        } catch {
+          /* theatre only */
+        }
+        return { total: pulse.towns.length, data: pulse };
+      },
+    }),
+    tool({
       name: 'get_agent_demand',
       title: 'Agent demand this session',
       description:
@@ -603,12 +634,12 @@ function defs(): ToolDef[] {
 }
 
 /** Single source of truth for the registered tool count (badge, tests, E2E). */
-export const TOOL_COUNT = 13;
+export const TOOL_COUNT = 14;
 
 let registered = false;
 
 /**
- * Register all nine tools. Called at module evaluation from the client entry;
+ * Register all fourteen tools. Called at module evaluation from the client entry;
  * must never await the catalogue (each execute does that internally).
  */
 export function registerAll(): void {

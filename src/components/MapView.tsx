@@ -15,6 +15,8 @@ import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import type { Store, ViewState } from '@/lib/store';
 import { getPresenceBus } from '@/lib/presence';
 import { getSignalsLog, type PingKind } from '@/lib/signals';
+import { getPulseStore } from '@/lib/pulse-client';
+import { fold } from '@/lib/types';
 import 'leaflet/dist/leaflet.css';
 
 const MARKER_CAP = 400;
@@ -39,6 +41,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     null,
   );
   const pingLayerRef = useRef<LayerGroup | null>(null);
+  const pulseLayerRef = useRef<LayerGroup | null>(null);
 
   // Create once, destroy on unmount.
   useEffect(() => {
@@ -54,6 +57,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 18 }).addTo(map);
       markersRef.current = L.layerGroup().addTo(map);
       pingLayerRef.current = L.layerGroup().addTo(map);
+      pulseLayerRef.current = L.layerGroup().addTo(map);
       map.on('contextmenu', (ev) => {
         const e = ev as { latlng: { lat: number; lng: number }; containerPoint: { x: number; y: number } };
         setWheel({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng });
@@ -67,6 +71,8 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       markersRef.current = null;
       pingLayerRef.current?.clearLayers();
       pingLayerRef.current = null;
+      pulseLayerRef.current?.clearLayers();
+      pulseLayerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -133,6 +139,44 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The demand pulse layer (issue #609): towns swell with real agent demand,
+  // coral for served requests, bright yellow for the invisible demand
+  // (zero results). Centroids come from the catalogue itself; towns without
+  // a resolvable centroid simply do not plot.
+  useEffect(() => {
+    const pulseStore = getPulseStore();
+    const draw = () => {
+      const data = pulseStore.getSnapshot();
+      const layer = pulseLayerRef.current;
+      if (!data || !layer || !mapReady) return;
+      void (async () => {
+        const L = (await import('leaflet')).default;
+        layer.clearLayers();
+        // Town centroid: mean of the catalogue's own coordinates, memoized.
+        const centroids = townCentroids(store);
+        const max = Math.max(1, ...data.towns.map((t) => t.count));
+        for (const t of data.towns) {
+          const c = centroids.get(fold(t.town));
+          if (!c) continue;
+          const size = 18 + Math.round(30 * Math.sqrt(t.count / max));
+          const invisible = t.zeroCount > 0 && t.zeroCount >= t.count / 2;
+          L.marker([c.lat, c.lng], {
+            interactive: false,
+            icon: L.divIcon({
+              className: 'ink-label-wrap',
+              html: `<span class="demand-pulse ${invisible ? 'demand-pulse--invisible' : ''}" style="--size:${size}px" title="${t.count}"></span>`,
+              iconAnchor: [size / 2, size / 2],
+            }),
+          }).addTo(layer);
+        }
+      })();
+    };
+    const unsubscribe = pulseStore.subscribe(draw);
+    draw();
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, store]);
 
   // Tool theatre (issue #607): find_near sweeps its radius on the shared map.
   // The temporary circle removes itself; timeouts are cleared on unmount.
@@ -281,4 +325,27 @@ function escapeHtml(s: string): string {
 
 function escapeAttr(s: string): string {
   return escapeHtml(s).replace(/'/g, '&#39;');
+}
+
+/** Mean coordinates per folded town name, computed once per catalogue. */
+const centroidCache = new WeakMap<object, Map<string, { lat: number; lng: number }>>();
+function townCentroids(store: Store): Map<string, { lat: number; lng: number }> {
+  const key = store.catalog;
+  const cached = centroidCache.get(key);
+  if (cached) return cached;
+  const sums = new Map<string, { lat: number; lng: number; n: number }>();
+  store.catalog.places.forEach((p) => {
+    if (p.lat === null || p.lng === null || p.t < 0) return;
+    const town = fold(store.vocab.towns[p.t] ?? '');
+    if (!town) return;
+    const e = sums.get(town) ?? { lat: 0, lng: 0, n: 0 };
+    e.lat += p.lat;
+    e.lng += p.lng;
+    e.n += 1;
+    sums.set(town, e);
+  });
+  const out = new Map<string, { lat: number; lng: number }>();
+  for (const [town, e] of sums) out.set(town, { lat: e.lat / e.n, lng: e.lng / e.n });
+  centroidCache.set(key, out);
+  return out;
 }

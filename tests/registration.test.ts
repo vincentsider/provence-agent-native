@@ -103,6 +103,7 @@ describe('registerAll resilience', () => {
           'find_near',
           'get_agent_demand',
           'get_catalog_stats',
+          'get_demand_pulse',
           'get_input_result',
           'get_place',
           'get_visitor_signals',

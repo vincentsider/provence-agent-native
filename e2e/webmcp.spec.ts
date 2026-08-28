@@ -124,7 +124,7 @@ test.describe('webmcp tools', () => {
       async () => {
         const mc = (document as never as { modelContext: { getTools(): Promise<unknown[]> } })
           .modelContext;
-        return (await mc.getTools()).length >= 10;
+        return (await mc.getTools()).length >= 14;
       },
       { timeout: 5_000 },
     );
@@ -228,5 +228,82 @@ test.describe('webmcp tools', () => {
 
     expect(result.error?.code).toBe('unknown_tag');
     expect(result.error?.suggestions?.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * v2 gesture dialogue (issue #608): the agent asks, the human taps a card,
+ * the agent reads the answer back. End to end through real registered tools.
+ */
+test.describe('gesture dialogue', () => {
+  test('ask_visitor card answered by a human click reaches get_input_result', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+
+    type Mc = {
+      getTools(): Promise<Array<{ name: string }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 14,
+      { timeout: 5_000 },
+    );
+
+    // Fire ask_visitor WITHOUT awaiting: it blocks until the human answers.
+    await page.evaluate(() => {
+      const mc = (document as never as { modelContext: Mc }).modelContext;
+      const w = window as never as { __askResult?: Promise<string> };
+      w.__askResult = mc.getTools().then((tools) => {
+        const tool = tools.find((t) => t.name === 'ask_visitor');
+        if (!tool) throw new Error('ask_visitor not registered');
+        return mc.executeTool(
+          tool,
+          JSON.stringify({
+            question: 'Plutôt mer ou village ?',
+            options: ['Mer', 'Village'],
+          }),
+        );
+      });
+    });
+
+    // The human sees the yellow card and taps an option.
+    const cards = page.getByTestId('elicitation-cards');
+    await expect(cards).toContainText('Plutôt mer ou village ?');
+    await cards.getByRole('button', { name: 'Mer', exact: true }).click();
+
+    const parsed = await page.evaluate(async () => {
+      const raw = await (window as never as { __askResult: Promise<string> }).__askResult;
+      return JSON.parse(raw) as { data?: { status?: string; choice?: string } };
+    });
+    expect(parsed.data?.status).toBe('answered');
+    expect(parsed.data?.choice).toBe('Mer');
+
+    // And the signals tool reports the same exchange.
+    const signals = await page.evaluate(async () => {
+      const mc = (document as never as { modelContext: Mc }).modelContext;
+      const tools = await mc.getTools();
+      const tool = tools.find((t) => t.name === 'get_visitor_signals');
+      if (!tool) throw new Error('get_visitor_signals not registered');
+      return JSON.parse(await mc.executeTool(tool, JSON.stringify({}))) as {
+        data?: { newSignals?: Array<{ kind?: string }> };
+      };
+    });
+    expect(JSON.stringify(signals)).toContain('Mer');
+  });
+});
+
+/** v2 demand pulse (issue #609): the endpoint always answers with the shape. */
+test.describe('demand pulse endpoint', () => {
+  test('GET /api/demand-pulse returns the aggregate shape, never an error', async ({ request }) => {
+    const res = await request.get('/api/demand-pulse');
+    expect(res.status()).toBe(200);
+    const body = (await res.json()) as { windowDays: number; totalRequests: number; towns: unknown[] };
+    expect(body.windowDays).toBe(7);
+    expect(typeof body.totalRequests).toBe('number');
+    expect(Array.isArray(body.towns)).toBe(true);
   });
 });

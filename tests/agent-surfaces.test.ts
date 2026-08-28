@@ -76,22 +76,22 @@ describe('parsePlacesParams', () => {
 describe('handleMcpMessage', () => {
   const catalog = sc();
 
-  it('initialize returns protocol, capabilities and French-catalogue instructions', () => {
-    const r = handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'initialize' }, catalog) as {
+  it('initialize returns protocol, capabilities and French-catalogue instructions', async () => {
+    const r = (await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'initialize' }, catalog)) as {
       result: { protocolVersion: string; instructions: string };
     };
     expect(r.result.protocolVersion).toBeTruthy();
     expect(r.result.instructions).toContain('French');
   });
 
-  it('notifications get no reply', () => {
-    expect(
+  it('notifications get no reply', async () => {
+    await expect(
       handleMcpMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, catalog),
-    ).toBeNull();
+    ).resolves.toBeNull();
   });
 
-  it('tools/list exposes the read-only tools with strict schemas', () => {
-    const r = handleMcpMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, catalog) as {
+  it('tools/list exposes the read-only tools with strict schemas', async () => {
+    const r = (await handleMcpMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, catalog)) as {
       result: { tools: Array<{ name: string; inputSchema: { additionalProperties?: boolean } }> };
     };
     expect(r.result.tools).toHaveLength(mcpToolCount());
@@ -102,14 +102,14 @@ describe('handleMcpMessage', () => {
     for (const t of r.result.tools) expect(t.inputSchema.additionalProperties).toBe(false);
   });
 
-  it('tools/call find_events finds the festival by query', () => {
-    const r = handleMcpMessage(
+  it('tools/call find_events finds the festival by query', async () => {
+    const r = (await handleMcpMessage(
       {
         jsonrpc: '2.0', id: 3, method: 'tools/call',
         params: { name: 'find_events', arguments: { query: 'street food' } },
       },
       catalog,
-    ) as { result: { isError: boolean; content: Array<{ text: string }> } };
+    )) as { result: { isError: boolean; content: Array<{ text: string }> } };
     expect(r.result.isError).toBe(false);
     const data = JSON.parse(r.result.content[0]!.text) as {
       total: number; results: Array<{ name: string; url: string; startDate: string }>;
@@ -120,24 +120,24 @@ describe('handleMcpMessage', () => {
     expect(data.results[0]!.startDate).toBe('2026-09-10');
   });
 
-  it('tools/call with invalid input answers isError content, never a crash', () => {
-    const r = handleMcpMessage(
+  it('tools/call with invalid input answers isError content, never a crash', async () => {
+    const r = (await handleMcpMessage(
       {
         jsonrpc: '2.0', id: 4, method: 'tools/call',
         params: { name: 'find_events', arguments: { month: 'octobre' } },
       },
       catalog,
-    ) as { result: { isError: boolean } };
+    )) as { result: { isError: boolean } };
     expect(r.result.isError).toBe(true);
   });
 
-  it('unknown tool and unknown method return JSON-RPC errors', () => {
-    const a = handleMcpMessage(
+  it('unknown tool and unknown method return JSON-RPC errors', async () => {
+    const a = (await handleMcpMessage(
       { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'nope' } },
       catalog,
-    ) as { error: { code: number } };
+    )) as { error: { code: number } };
     expect(a.error.code).toBe(-32602);
-    const b = handleMcpMessage({ jsonrpc: '2.0', id: 6, method: 'wat' }, catalog) as {
+    const b = (await handleMcpMessage({ jsonrpc: '2.0', id: 6, method: 'wat' }, catalog)) as {
       error: { code: number };
     };
     expect(b.error.code).toBe(-32601);
@@ -189,19 +189,19 @@ describe('MCP protocol version negotiation', () => {
     return { catalog: cat, vocab, indexes: buildIndexes(cat, vocab), generatedAt: 'x' };
   })();
 
-  it('echoes a supported requested version', () => {
-    const r = handleMcpMessage(
+  it('echoes a supported requested version', async () => {
+    const r = (await handleMcpMessage(
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
       catalog,
-    ) as { result: { protocolVersion: string } };
+    )) as { result: { protocolVersion: string } };
     expect(r.result.protocolVersion).toBe('2025-06-18');
   });
 
-  it('falls back to our default on an unknown version', () => {
-    const r = handleMcpMessage(
+  it('falls back to our default on an unknown version', async () => {
+    const r = (await handleMcpMessage(
       { jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '1999-01-01' } },
       catalog,
-    ) as { result: { protocolVersion: string } };
+    )) as { result: { protocolVersion: string } };
     expect(r.result.protocolVersion).toBe('2025-03-26');
   });
 });

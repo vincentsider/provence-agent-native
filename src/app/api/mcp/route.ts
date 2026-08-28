@@ -6,7 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { handleMcpMessage } from '@/lib/mcp-server';
+import { handleMcpMessage, type McpExtras } from '@/lib/mcp-server';
+import { aggregatePulse, PULSE_WINDOW_DAYS, type PulseRow } from '@/lib/demand-pulse';
+import { createClient } from '@supabase/supabase-js';
 import { getServerCatalog } from '@/lib/server-catalog';
 import { allowRequest, clientIpOf } from '@/lib/rate-limit';
 
@@ -50,20 +52,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const extras = buildExtras();
+
   // Streamable HTTP allows batches; answer each, drop notification replies.
   if (Array.isArray(body)) {
-    const replies = body
-      .map((m) => handleMcpMessage(m as Parameters<typeof handleMcpMessage>[0], sc))
-      .filter((r): r is NonNullable<typeof r> => r !== null);
+    const replies = (
+      await Promise.all(
+        body.map((m) => handleMcpMessage(m as Parameters<typeof handleMcpMessage>[0], sc, extras)),
+      )
+    ).filter((r): r is NonNullable<typeof r> => r !== null);
     return replies.length > 0
       ? NextResponse.json(replies)
       : new NextResponse(null, { status: 202 });
   }
 
-  const reply = handleMcpMessage(body as Parameters<typeof handleMcpMessage>[0], sc);
+  const reply = await handleMcpMessage(body as Parameters<typeof handleMcpMessage>[0], sc, extras);
   return reply === null
     ? new NextResponse(null, { status: 202 })
     : NextResponse.json(reply);
+}
+
+/** get_demand_pulse over MCP when the telemetry env is present. */
+function buildExtras(): McpExtras {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const workspaceId = process.env.WEBMCP_WORKSPACE_ID;
+  if (!url || !key || !workspaceId) return {};
+  return {
+    demandPulse: async () => {
+      const supabase = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const cutoff = new Date(Date.now() - PULSE_WINDOW_DAYS * 86_400_000).toISOString();
+      const { data, error } = await supabase
+        .from('webmcp_demand_events')
+        .select('args_summary, zero_result, occurred_hour')
+        .eq('workspace_id', workspaceId)
+        .gte('occurred_hour', cutoff)
+        .limit(5000);
+      if (error) throw new Error(error.code);
+      return aggregatePulse((data ?? []) as PulseRow[], new Date());
+    },
+  };
 }
 
 export function GET(): NextResponse {
