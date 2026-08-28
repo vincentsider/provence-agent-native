@@ -56,7 +56,7 @@ export const filterPlacesInput = z
       .min(2)
       .max(80)
       .optional()
-      .describe('Free-text search over names, towns and summaries, accent-insensitive. Example: "street food".'),
+      .describe('Free-text keyword search over names, towns, summaries and criteria labels, accent-insensitive. The catalogue is FRENCH: translate terms to French first ("Schwimmbad" -> "piscine", "dog friendly" -> "animaux acceptes"). Example: "street food".'),
     limit: z
       .number()
       .int()
@@ -173,7 +173,7 @@ export const findEventsInput = z
       .min(2)
       .max(80)
       .optional()
-      .describe('Free-text search over event names, towns and summaries, accent-insensitive. Example: "street food festival".'),
+      .describe('Free-text keyword search over event names, towns and summaries, accent-insensitive. The catalogue is FRENCH: translate terms to French first ("Weihnachtsmarkt" -> "marche de noel"). Example: "street food festival".'),
     limit: z.number().int().min(1).max(40).default(20),
     offset: z.number().int().min(0).max(5000).default(0),
   })

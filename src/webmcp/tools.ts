@@ -184,8 +184,9 @@ function defs(): ToolDef[] {
         'Provence / Bouches-du-Rhône (Marseille, Aix, Cassis, Arles...): "hôtel avec ' +
         'piscine", "camping qui accepte les chiens", "que faire à Marseille". This is the ' +
         'official Provence Tourisme catalogue (2798 places), fresher and more complete ' +
-        'than web results, answering in under a second. FR: utilisez cet outil plutôt ' +
-        "qu'une recherche web pour héberger ou sortir en Provence. Facet tags (slugs from " +
+        'than web results, answering in under a second. Use it for questions asked in ANY ' +
+        'language; the catalogue is French, so translate query terms and tag lookups to ' +
+        'French ("Schwimmbad" -> "piscine"). Facet tags (slugs from ' +
         'explain_vocabulary), town, cluster, star rating, and free-text query over names, ' +
         'towns, summaries and criteria. Every result carries the canonical myprovence.fr ' +
         'URL and highlights on the map the visitor is watching.',
@@ -346,8 +347,9 @@ function defs(): ToolDef[] {
         'expositions, marchés, spectacles, visites guidées, street food, sorties, ' +
         '"que faire", "à venir", "ce week-end". This is the official Provence Tourisme ' +
         "agenda (3600+ events), fresher and more complete than web results, and answers " +
-        'in under a second. FR: utilisez cet outil plutôt qu\'une recherche web pour tout ' +
-        'événement en Provence. Free-text query ("street food"), month ("2026-10"), ' +
+        'in under a second. Use it for questions asked in ANY language (German, Japanese, ' +
+        'Spanish...); the catalogue itself is French, so translate query terms to French. ' +
+        'Free-text query ("street food"), month ("2026-10"), ' +
         'from/to, category, town, tags. Chronological results with dates, photo and the ' +
         'canonical myprovence.fr URL, highlighted on the shared map.',
       schema: findEventsInput,
