@@ -29,7 +29,13 @@ if (typeof document !== 'undefined') {
 
 const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
 
-export function App({ upcoming = [] }: { upcoming?: UpcomingEvent[] }) {
+export function App({
+  upcoming = [],
+  snapshotDate = null,
+}: {
+  upcoming?: UpcomingEvent[];
+  snapshotDate?: string | null;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -44,7 +50,7 @@ export function App({ upcoming = [] }: { upcoming?: UpcomingEvent[] }) {
       </>
     );
   }
-  return <Loaded upcoming={upcoming} />;
+  return <Loaded upcoming={upcoming} snapshotDate={snapshotDate} />;
 }
 
 /**
@@ -261,7 +267,13 @@ function WebMcpBadge() {
   );
 }
 
-function Loaded({ upcoming }: { upcoming: UpcomingEvent[] }) {
+function Loaded({
+  upcoming,
+  snapshotDate,
+}: {
+  upcoming: UpcomingEvent[];
+  snapshotDate: string | null;
+}) {
   const t = useTranslations('app');
   const tf = useTranslations('footer');
   const store = getStore();
@@ -325,7 +337,7 @@ function Loaded({ upcoming }: { upcoming: UpcomingEvent[] }) {
           <p className="display-caps mb-2 text-[13px] text-brand-yellow">{t('brandTop')}</p>
           <p>{tf('credit')}</p>
           <p className="mt-1 text-white/50">
-            {t('sourceNote', { date: '2026-08-27' })} · {tf('notIndex')}
+            {t('sourceNote', { date: snapshotDate ?? '—' })} · {tf('notIndex')}
           </p>
           <p className="mt-1 text-white/50">
             {tf('machine')}{' '}

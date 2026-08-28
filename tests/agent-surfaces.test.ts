@@ -205,3 +205,29 @@ describe('MCP protocol version negotiation', () => {
     expect(r.result.protocolVersion).toBe('2025-03-26');
   });
 });
+
+describe('selectUpcoming (landing-page strip)', () => {
+  const { selectUpcoming } = require('@/lib/build-data') as {
+    selectUpcoming: typeof import('@/lib/build-data').selectUpcoming;
+  };
+  const AGENDA = CLUSTERS.findIndex((c) => c.key === 'agenda');
+  const vocab = { version: 1 as const, tags: {}, towns: ['Marseille'] };
+  const mk = (id: number, d1: string | null, c = AGENDA): Place => ({
+    id, c, n: `E${id}`, t: 0, lat: null, lng: null, g: null, tags: [],
+    u: `/agenda/festival/marseille/e${id}`, s: '', img: null, d1, d2: null,
+  });
+
+  it('keeps only agenda events starting on/after today, soonest first, id tiebreak', () => {
+    const events = [mk(5, '2026-09-01'), mk(2, '2026-08-30'), mk(9, '2026-08-30'),
+      mk(3, '2026-08-01'), mk(4, null), mk(7, '2026-09-01', 0)];
+    const out = selectUpcoming(events, vocab, '2026-08-28', 10);
+    expect(out.map((e) => e.name)).toEqual(['E2', 'E9', 'E5']);
+    expect(out[0]!.category).toBe('festival');
+    expect(out[0]!.town).toBe('Marseille');
+  });
+
+  it('respects the limit', () => {
+    const events = Array.from({ length: 30 }, (_, i) => mk(i + 1, '2026-09-15'));
+    expect(selectUpcoming(events, vocab, '2026-08-28', 12)).toHaveLength(12);
+  });
+});
