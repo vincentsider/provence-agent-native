@@ -32,6 +32,72 @@ test.describe('human surface', () => {
 });
 
 /**
+ * The fetch-only agent surfaces: what basic claude.ai / chatgpt.com get
+ * without executing a single line of JavaScript (field failure, 28 Aug).
+ */
+test.describe('fetch-only surfaces', () => {
+  test('/agenda serves server-rendered events with canonical links', async ({ request }) => {
+    const res = await request.get('/agenda');
+    expect(res.status()).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Agenda Provence');
+    expect(html).toContain('https://www.myprovence.fr/agenda/');
+    expect(html).toContain('/api/events');
+  });
+
+  test('/api/events answers the street food question over plain GET', async ({ request }) => {
+    const res = await request.get('/api/events?query=street+food');
+    expect(res.status()).toBe(200);
+    const data = (await res.json()) as { total: number; results: Array<{ name: string }> };
+    expect(data.total).toBeGreaterThan(0);
+    expect(data.results.some((r) => /street food/i.test(r.name))).toBe(true);
+  });
+
+  test('/api/events rejects unknown params and invalid months', async ({ request }) => {
+    expect((await request.get('/api/events?evil=1')).status()).toBe(400);
+    expect((await request.get('/api/events?month=2026-13')).status()).toBe(400);
+  });
+
+  test('/api/places filters hotels by tags over plain GET', async ({ request }) => {
+    const res = await request.get('/api/places?cluster=hotels&tag=parking&tag=animaux-acceptes&limit=1');
+    const data = (await res.json()) as { total: number };
+    expect(data.total).toBeGreaterThan(0);
+  });
+
+  test('/llms.txt is served', async ({ request }) => {
+    const res = await request.get('/llms.txt');
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain('/api/events');
+  });
+
+  test('the remote MCP endpoint lists and calls tools', async ({ request }) => {
+    const list = await request.post('/api/mcp', {
+      data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    });
+    const tools = ((await list.json()) as { result: { tools: Array<{ name: string }> } }).result.tools;
+    expect(tools.map((t) => t.name)).toContain('find_events');
+
+    const call = await request.post('/api/mcp', {
+      data: {
+        jsonrpc: '2.0', id: 2, method: 'tools/call',
+        params: { name: 'find_events', arguments: { query: 'street food' } },
+      },
+    });
+    const payload = (await call.json()) as {
+      result: { isError: boolean; content: Array<{ text: string }> };
+    };
+    expect(payload.result.isError).toBe(false);
+    expect(payload.result.content[0]!.text).toContain('Street Food Festival');
+  });
+
+  test('guessed URLs land somewhere real', async ({ request }) => {
+    const res = await request.get('/fr/agenda', { maxRedirects: 0 });
+    expect([307, 308]).toContain(res.status());
+    expect(res.headers()['location']).toContain('/agenda');
+  });
+});
+
+/**
  * The agent-facing contract (spec 11.4). Skips when the browser has no
  * modelContext, so the suite is still green on plain Chromium.
  */

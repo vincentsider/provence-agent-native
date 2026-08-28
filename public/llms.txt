@@ -1,0 +1,37 @@
+# Les guides de Provence, lisibles par les agents
+
+> The five myprovence.fr guides (hotels, campsites, guest houses, leisure,
+> itineraries) plus the events agenda of the Bouches-du-Rhone, as one
+> agent-native surface. Official Provence Tourisme catalogue: 2,798 places
+> and 3,600+ dated events. Every record links to its canonical page on
+> https://www.myprovence.fr. Demonstration surface (noindex), snapshot date
+> in /data/manifest.json.
+
+## Machine endpoints (plain GET, JSON, no auth)
+
+- /api/events?month=YYYY-MM — events overlapping a month, chronological
+- /api/events?query=street+food — free-text keyword search (French terms)
+- /api/events?from=YYYY-MM-DD&to=YYYY-MM-DD&category=festival&town=Marseille&tag=slug
+- /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes — the guides
+- /api/places?query=piscine+chauffee&minGrade=4&town=Cassis
+- Unknown tags/towns return suggestions; unknown parameters return 400.
+- The catalogue text is FRENCH: translate query terms to French first.
+
+## Human-and-agent pages
+
+- /agenda — server-rendered next-90-days agenda (no JavaScript needed)
+- /fr and /en — the full catalogue browser; in a WebMCP-capable browser it
+  exposes 10 site tools (find_events, filter_places, explain_vocabulary,
+  get_place, compare_places, find_near, get_catalog_stats, set_view,
+  highlight_places, get_agent_demand) over the same shared view.
+
+## Remote MCP
+
+- POST /api/mcp — streamable-HTTP MCP endpoint (JSON-RPC: initialize,
+  tools/list, tools/call) exposing the read-only tools for MCP clients.
+
+## Data
+
+- /data/manifest.json — content-hashed artefact index + snapshot date
+- Content (c) Provence Tourisme via the Apidae network, used with
+  permission; code MIT, github.com/vincentsider/provence-agent-native.

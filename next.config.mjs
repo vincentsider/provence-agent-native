@@ -47,6 +47,11 @@ const nextConfig = {
         destination: 'https://www.myprovence.fr/les-guides/:path*',
         permanent: false,
       },
+      // URLs agents GUESS (field observation: claude.ai tried /fr/agenda).
+      { source: '/:locale(fr|en)/agenda', destination: '/agenda', permanent: false },
+      { source: '/events', destination: '/agenda', permanent: false },
+      { source: '/:locale(fr|en)/agenda/:path*', destination: 'https://www.myprovence.fr/agenda/:path*', permanent: false },
+      { source: '/agenda/:path+', destination: 'https://www.myprovence.fr/agenda/:path+', permanent: false },
     ];
   },
   async headers() {

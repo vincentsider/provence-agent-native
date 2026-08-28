@@ -8,6 +8,7 @@
  */
 
 import { aliasIds } from './vocab';
+import { toPublicShape } from './public-shape';
 import {
   buildIndexes,
   clusterScope,
@@ -26,7 +27,6 @@ import {
   type PublicPlace,
   type Vocab,
   CANONICAL_HOST,
-  categoryOf,
 } from './types';
 
 export interface ViewState {
@@ -262,35 +262,15 @@ export class Store {
     return scope;
   }
 
-  /** The single choke point every outgoing record passes through (spec 8.5).
-   *  Tag ids are canonicalised (alias -> canonical slug) and deduped so an
-   *  agent always sees "animaux-acceptes", never the surface-specific
-   *  "acceptes" twin. */
+  /** Delegates to the shared mapper (src/lib/public-shape.ts) so all four
+   *  agent surfaces (WebMCP, GET APIs, /agenda, remote MCP) emit
+   *  byte-identical shapes. */
   toPublicShape(p: Place): PublicPlace {
-    const alias = this.#indexes?.aliasToCanonical;
-    const slugs = new Set<string>();
-    for (const rawId of p.tags) {
-      const id = alias?.get(rawId) ?? rawId;
-      const slug = this.#vocab.tags[String(id)]?.slug;
-      if (slug) slugs.add(slug);
-    }
-    const category = categoryOf(p.u);
-    return {
-      id: p.id,
-      name: p.n,
-      cluster: CLUSTERS[p.c]?.key ?? 'loisirs',
-      town: p.t >= 0 ? (this.#vocab.towns[p.t] ?? null) : null,
-      url: `https://${CANONICAL_HOST}${p.u}`,
-      grade: p.g,
-      tags: [...slugs],
-      lat: p.lat,
-      lng: p.lng,
-      summary: p.s,
-      image: p.img ? `https://${CANONICAL_HOST}${p.img}` : null,
-      // Agenda records only: dates + URL-derived category.
-      ...(p.d1 !== undefined ? { startDate: p.d1, endDate: p.d2 ?? null } : {}),
-      ...(category ? { category } : {}),
-    };
+    return toPublicShape(
+      p,
+      this.#vocab,
+      this.#indexes?.aliasToCanonical ?? new Map<number, number>(),
+    );
   }
 }
 
