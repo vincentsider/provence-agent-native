@@ -34,7 +34,7 @@ export async function enumerateDetailPages(): Promise<SitemapEntry[]> {
       }
       if (seen.has(path)) continue;
       for (const [clusterIdx, cluster] of CLUSTERS.entries()) {
-        const prefix = `/les-guides/${cluster.path}/`;
+        const prefix = cluster.sitemapPrefix;
         if (path.startsWith(prefix) && path.slice(prefix.length).split('/').filter(Boolean).length >= 2) {
           seen.add(path);
           out.push({ path, clusterIdx });

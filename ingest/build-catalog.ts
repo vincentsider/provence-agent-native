@@ -49,6 +49,8 @@ const BASE = 'https://www.myprovence.fr/les-guides';
 // record: the brand-matched surface is photo-led, like the source site.
 const BUDGET_CATALOG_BROTLI = 480 * 1024;
 const BUDGET_VOCAB_BROTLI = 40 * 1024;
+// 3 824 events with summaries and photo paths; measured before raising.
+const BUDGET_EVENTS_BROTLI = 500 * 1024;
 const MAX_RECORDS = 0xffff; // Uint16Array indexing ceiling
 const DRIFT_TOLERANCE = 0.1;
 
@@ -81,6 +83,8 @@ interface WorkingPlace {
   path: string;
   summary: string;
   img: string | null;
+  d1: string | null;
+  d2: string | null;
 }
 
 async function main(): Promise<void> {
@@ -94,9 +98,10 @@ async function main(): Promise<void> {
   const detailTags = new Map<number, string>();
   const flags: Array<Flag & { where: string }> = [];
 
-  // ---- Stage 1: hub pages + pagination -----------------------------------
+  // ---- Stage 1: hub pages + pagination (clusters that have a hub) --------
   for (const [clusterIdx, cluster] of CLUSTERS.entries()) {
-    const firstHtml = await fetchCached(`${BASE}/${cluster.path}`);
+    if (cluster.hubPath === null) continue; // agenda: sitemap-only
+    const firstHtml = await fetchCached(`${BASE}/${cluster.hubPath}`);
     const first = parseHubPage(firstHtml);
     const pages = first.totalPages ?? 1;
     console.log(
@@ -104,15 +109,15 @@ async function main(): Promise<void> {
         `${first.facets.length} facets`,
     );
 
-    ingestCards(byNodeId, first.cards, clusterIdx, cluster.path);
+    ingestCards(byNodeId, first.cards, clusterIdx, cluster.sitemapPrefix);
     ingestFacets(facetTags, first.facets);
     detectHubAliasPairs(first.facets, aliasPairs);
 
     for (let pg = 2; pg <= pages; pg++) {
-      const html = await fetchCached(`${BASE}/${cluster.path}?pg=${pg}`);
+      const html = await fetchCached(`${BASE}/${cluster.hubPath}?pg=${pg}`);
       const page = parseHubPage(html);
       if (page.cards.length === 0) break; // defensive: stop on an empty page
-      ingestCards(byNodeId, page.cards, clusterIdx, cluster.path);
+      ingestCards(byNodeId, page.cards, clusterIdx, cluster.sitemapPrefix);
     }
   }
 
@@ -134,7 +139,7 @@ async function main(): Promise<void> {
       nodeId: -1, // resolved during enrichment from the detail page
       cluster: entry.clusterIdx,
       name: pathToName(entry.path),
-      town: pathToTown(entry.path, CLUSTERS[entry.clusterIdx]!.path),
+      town: pathToTown(entry.path, CLUSTERS[entry.clusterIdx]!.sitemapPrefix),
       lat: null,
       lng: null,
       grade: null,
@@ -142,6 +147,8 @@ async function main(): Promise<void> {
       path: entry.path,
       summary: '',
       img: null,
+      d1: null,
+      d2: null,
     };
     byPath.set(entry.path, wp);
   }
@@ -184,6 +191,8 @@ async function main(): Promise<void> {
         if (d.town) wp.town = d.town;
         if (d.grade !== null) wp.grade = d.grade;
         if (wp.img === null && d.img !== null) wp.img = d.img;
+        wp.d1 = d.d1;
+        wp.d2 = d.d2;
         for (const t of d.tags) {
           wp.tagIds.add(t.termId);
           if (!facetTags.has(t.termId) && !detailTags.has(t.termId)) {
@@ -308,8 +317,9 @@ async function main(): Promise<void> {
   // Sitemap-only records that were not enriched have no Drupal node id yet;
   // give them a deterministic negative id from the path so the id stays
   // stable across builds until enrichment resolves the real one.
+  const AGENDA_IDX = CLUSTERS.findIndex((c) => c.key === 'agenda');
   const seenIds = new Set<number>();
-  const places: Place[] = [...byPath.values()]
+  const allRecords: Place[] = [...byPath.values()]
     .map((wp) => {
       if (wp.nodeId < 0) wp.nodeId = -fnv1a(wp.path);
       return wp;
@@ -332,11 +342,15 @@ async function main(): Promise<void> {
       u: wp.path,
       s: wp.summary,
       img: wp.img,
+      // Dates ship only on agenda records: guides records pay zero bytes.
+      ...(wp.cluster === AGENDA_IDX ? { d1: wp.d1, d2: wp.d2 } : {}),
     }));
+  const places = allRecords.filter((p) => p.c !== AGENDA_IDX);
+  const events = allRecords.filter((p) => p.c === AGENDA_IDX);
 
   // Integrity: every record path canonical, every tag id known.
-  for (const p of places) {
-    if (!p.u.startsWith('/les-guides/')) {
+  for (const p of allRecords) {
+    if (!p.u.startsWith('/les-guides/') && !p.u.startsWith('/agenda/')) {
       throw new Error(`record ${p.id} has non-canonical path ${p.u}`);
     }
     for (const t of p.tags) {
@@ -367,18 +381,24 @@ async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   const catalogJson = JSON.stringify({ version: 1, places });
   const vocabJson = JSON.stringify({ version: 1, tags, towns });
+  const eventsJson = events.length > 0 ? JSON.stringify({ version: 1, places: events }) : null;
 
   const catalogBr = brotliCompressSync(Buffer.from(catalogJson)).length;
   const vocabBr = brotliCompressSync(Buffer.from(vocabJson)).length;
+  const eventsBr = eventsJson ? brotliCompressSync(Buffer.from(eventsJson)).length : 0;
   console.log(
     `[emit] catalog ${(catalogJson.length / 1024).toFixed(0)} KB raw / ${(catalogBr / 1024).toFixed(0)} KB br; ` +
-      `vocab ${(vocabJson.length / 1024).toFixed(0)} KB raw / ${(vocabBr / 1024).toFixed(0)} KB br`,
+      `vocab ${(vocabJson.length / 1024).toFixed(0)} KB raw / ${(vocabBr / 1024).toFixed(0)} KB br; ` +
+      `events ${eventsJson ? (eventsJson.length / 1024).toFixed(0) : 0} KB raw / ${(eventsBr / 1024).toFixed(0)} KB br`,
   );
   if (catalogBr > BUDGET_CATALOG_BROTLI) {
     throw new Error(`catalog brotli ${catalogBr} exceeds budget ${BUDGET_CATALOG_BROTLI}`);
   }
   if (vocabBr > BUDGET_VOCAB_BROTLI) {
     throw new Error(`vocab brotli ${vocabBr} exceeds budget ${BUDGET_VOCAB_BROTLI}`);
+  }
+  if (eventsBr > BUDGET_EVENTS_BROTLI) {
+    throw new Error(`events brotli ${eventsBr} exceeds budget ${BUDGET_EVENTS_BROTLI}`);
   }
 
   const catalogHash = sha256(catalogJson).slice(0, 8);
@@ -387,9 +407,14 @@ async function main(): Promise<void> {
   const vocabFile = `vocab.${vocabHash}.json`;
   await writeFile(path.join(OUT_DIR, catalogFile), catalogJson);
   await writeFile(path.join(OUT_DIR, vocabFile), vocabJson);
+  let eventsFile: string | undefined;
+  if (eventsJson) {
+    eventsFile = `events.${sha256(eventsJson).slice(0, 8)}.json`;
+    await writeFile(path.join(OUT_DIR, eventsFile), eventsJson);
+  }
 
   const perCluster = Object.fromEntries(
-    CLUSTERS.map((c, i) => [c.key, places.filter((p) => p.c === i).length]),
+    CLUSTERS.map((c, i) => [c.key, allRecords.filter((p) => p.c === i).length]),
   ) as Record<ClusterKey, number>;
 
   const manifest: Manifest = {
@@ -398,17 +423,26 @@ async function main(): Promise<void> {
     source: 'public',
     counts: {
       places: places.length,
+      ...(events.length > 0 ? { events: events.length } : {}),
       tags: Object.keys(tags).length,
       towns: towns.length,
       perCluster,
     },
-    files: { catalog: catalogFile, vocab: vocabFile },
-    sha256: { catalog: sha256(catalogJson), vocab: sha256(vocabJson) },
+    files: {
+      catalog: catalogFile,
+      vocab: vocabFile,
+      ...(eventsFile ? { events: eventsFile } : {}),
+    },
+    sha256: {
+      catalog: sha256(catalogJson),
+      vocab: sha256(vocabJson),
+      ...(eventsJson ? { events: sha256(eventsJson) } : {}),
+    },
   };
   await writeFile(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
   console.log(
-    `[done] ${places.length} places, ${Object.keys(tags).length} tags, ${towns.length} towns ` +
+    `[done] ${places.length} places + ${events.length} events, ${Object.keys(tags).length} tags, ${towns.length} towns ` +
       `in ${((Date.now() - t0) / 1000).toFixed(0)}s ` +
       `(${fetchStats.network} network fetches, ${fetchStats.cached} cache hits)`,
   );
@@ -434,6 +468,8 @@ function ingestCards(
       path: card.path,
       summary: '',
       img: card.img,
+      d1: null,
+      d2: null,
     });
   }
 }

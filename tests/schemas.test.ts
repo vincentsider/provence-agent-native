@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import {
   comparePlacesInput,
+  findEventsInput,
   explainVocabularyInput,
   filterPlacesInput,
   findNearInput,
@@ -25,6 +26,7 @@ const ALL: Array<[string, z.ZodType]> = [
   ['get_place', getPlaceInput],
   ['compare_places', comparePlacesInput],
   ['find_near', findNearInput],
+  ['find_events', findEventsInput],
   ['get_catalog_stats', getCatalogStatsInput],
   ['set_view', setViewInput],
   ['highlight_places', highlightPlacesInput],
@@ -116,6 +118,14 @@ describe('fuzzing', () => {
   it('get_place requires id or url', () => {
     expect(getPlaceInput.safeParse({}).success).toBe(false);
     expect(getPlaceInput.safeParse({ id: 5 }).success).toBe(true);
+  });
+
+  it('find_events validates month and date formats', () => {
+    expect(findEventsInput.safeParse({ month: '2026-10' }).success).toBe(true);
+    expect(findEventsInput.safeParse({ month: 'octobre' }).success).toBe(false);
+    expect(findEventsInput.safeParse({ from: '2026-10-01', to: '2026-10-31' }).success).toBe(true);
+    expect(findEventsInput.safeParse({ from: '01/10/2026' }).success).toBe(false);
+    expect(findEventsInput.safeParse({}).success).toBe(true); // open browse is valid
   });
 
   it('find_near requires town or full coordinates', () => {

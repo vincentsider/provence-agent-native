@@ -100,6 +100,10 @@ export function parseHubPage(html: string): HubPage {
 }
 
 export interface DetailPage {
+  /** Event start/end (YYYY-MM-DD): Event JSON-LD when present, else the
+   *  first <time datetime> pair in the anchored region. null = undated. */
+  readonly d1: string | null;
+  readonly d2: string | null;
   /** True when the anchored article is a hub/listing page, not a place. */
   readonly isListPage: boolean;
   /** True when rel=canonical points elsewhere: a stale sitemap entry whose
@@ -125,10 +129,28 @@ export function parseDetailPage(html: string, pagePath?: string): DetailPage {
   let town: string | null = null;
   let apidaeId: string | null = null;
 
+  let d1: string | null = null;
+  let d2: string | null = null;
+
   const ldRe = /<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
   for (const m of html.matchAll(ldRe)) {
     try {
       const doc = JSON.parse(m[1]!) as Record<string, unknown>;
+      // Any Event subtype (TheaterEvent, MusicEvent, ...) carries the dates.
+      if (typeof doc['@type'] === 'string' && doc['@type'].includes('Event')) {
+        if (typeof doc.startDate === 'string') d1 = isoDay(doc.startDate);
+        if (typeof doc.endDate === 'string') d2 = isoDay(doc.endDate);
+        const loc = doc.location as Record<string, unknown> | undefined;
+        const geo = loc?.geo as Record<string, unknown> | undefined;
+        if (geo && typeof geo.latitude === 'number' && typeof geo.longitude === 'number') {
+          lat = round5(geo.latitude);
+          lng = round5(geo.longitude);
+        }
+        const addr = loc?.address as Record<string, unknown> | undefined;
+        if (addr && typeof addr.addressLocality === 'string') {
+          town = sanitizeText(addr.addressLocality, 80);
+        }
+      }
       if (typeof doc.name === 'string') name = sanitizeText(doc.name, 120);
       if (typeof doc.description === 'string') summary = sanitizeText(doc.description, 280);
       if (typeof doc.latitude === 'number') lat = round5(doc.latitude);
@@ -187,10 +209,23 @@ export function parseDetailPage(html: string, pagePath?: string): DetailPage {
       const region = html.slice(anchor.index, anchor.index + 60_000);
       const imgM = /<img[^>]+src="(\/sites\/default\/files\/styles\/[^"]+)"/.exec(region);
       if (imgM) img = decodeAmp(imgM[1]!);
+      // Date fallback for events without an Event JSON-LD block (recurring
+      // markets, permanent expositions render a visible date range).
+      if (d1 === null) {
+        const times = [...region.matchAll(/<time datetime="([^"]+)"/g)].map((t) => isoDay(t[1]!));
+        if (times[0]) d1 = times[0];
+        if (times[1] && times[1] !== times[0]) d2 = times[1];
+      }
     }
   }
 
-  return { isListPage, redirected, img, name, summary, lat, lng, town, apidaeId, tags, grade };
+  return { d1, d2, isListPage, redirected, img, name, summary, lat, lng, town, apidaeId, tags, grade };
+}
+
+/** "2026-10-18T00:00:00+02:00" -> "2026-10-18"; garbage -> null. */
+function isoDay(s: string): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+  return m ? m[1]! : null;
 }
 
 /** src attributes HTML-escape the itok query separator. */
@@ -223,8 +258,8 @@ export function pathToName(path: string): string {
  *  .../<cluster>/<town>/<slug>; loisirs paths insert a subcategory first
  *  (.../loisirs/<subcat>/<town>/<slug>), so the town is always the
  *  second-to-last segment, never the first. */
-export function pathToTown(path: string, clusterPath: string): string | null {
-  const rest = path.replace(`/les-guides/${clusterPath}/`, '');
+export function pathToTown(path: string, sitemapPrefix: string): string | null {
+  const rest = path.startsWith(sitemapPrefix) ? path.slice(sitemapPrefix.length) : path;
   const segments = rest.split('/').filter(Boolean);
   return segments.length >= 2 ? pathToName(`/${segments[segments.length - 2]!}`) : null;
 }

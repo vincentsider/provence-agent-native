@@ -7,7 +7,7 @@
  * (hotlinked with approval; CSP img-src allows only that host).
  */
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Store, ViewState } from '@/lib/store';
 import { CANONICAL_HOST, CLUSTERS } from '@/lib/types';
 
@@ -17,6 +17,7 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
   const t = useTranslations('list');
   const tc = useTranslations('clusters');
   const tf = useTranslations('filters');
+  const locale = useLocale();
   const places = store.catalog.places;
   const shown = view.highlighted.slice(0, LIST_CAP);
 
@@ -49,7 +50,12 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
                 rel="noopener noreferrer"
                 className="group block"
               >
-                <div className="aspect-[4/3] w-full overflow-hidden bg-brand-paper">
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-brand-paper">
+                  {p.d1 && (
+                    <span className="display-caps absolute left-0 top-3 z-[1] bg-brand-yellow px-2.5 py-1 text-[11px] text-brand-ink">
+                      {formatRange(p.d1, p.d2 ?? null, locale)}
+                    </span>
+                  )}
                   {p.img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -86,4 +92,13 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
       </ul>
     </section>
   );
+}
+
+/** "2026-10-18" (+ optional end) in the visitor's locale, e.g. "18 oct. – 2 nov.". */
+function formatRange(d1: string, d2: string | null, locale: string): string {
+  const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+  const parse = (s: string) => new Date(`${s}T12:00:00Z`);
+  const start = fmt.format(parse(d1));
+  if (!d2 || d2 === d1) return start;
+  return `${start} – ${fmt.format(parse(d2))}`;
 }

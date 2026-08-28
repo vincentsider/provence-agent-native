@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { registerAll } from '@/webmcp/tools';
+import { TOOL_COUNT, registerAll } from '@/webmcp/tools';
 import { getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
@@ -149,8 +149,11 @@ function WebMcpBadge() {
   if (!status.supported) {
     text = t('webmcpInactive');
     tone = 'bg-white/70 text-brand-ink/70';
-  } else if (status.failed.length > 0 || (status.verified !== null && status.verified < 9)) {
-    text = t('webmcpPartial', { ok: count, failed: 9 - count });
+  } else if (
+    status.failed.length > 0 ||
+    (status.verified !== null && status.verified < TOOL_COUNT)
+  ) {
+    text = t('webmcpPartial', { ok: count, failed: TOOL_COUNT - count });
     tone = 'bg-brand-red text-white';
   } else {
     text = t('webmcpActive', { count });

@@ -270,11 +270,26 @@ export function runFilter(
     townIdx = t;
   }
 
+  const dated = input.from !== undefined || input.to !== undefined;
+  const from = input.from ?? '0000-01-01';
+  const to = input.to ?? '9999-12-31';
+
   const passes = (p: Place): boolean => {
     if (clusterIdx >= 0 && p.c !== clusterIdx) return false;
     if (townIdx >= 0 && p.t !== townIdx) return false;
     if (input.minGrade !== undefined && (p.g === null || p.g < input.minGrade))
       return false;
+    if (input.category !== undefined && !p.u.startsWith(`/agenda/${input.category}/`))
+      return false;
+    if (dated) {
+      // Overlap of [d1, d2 ?? d1] with [from, to]; undated records never
+      // match a dated query (honest for "permanent" events). ISO strings
+      // compare lexicographically, so no Date parsing on the hot path.
+      const d1 = p.d1;
+      if (d1 === undefined || d1 === null) return false;
+      const end = p.d2 ?? d1;
+      if (end < from || d1 > to) return false;
+    }
     return true;
   };
 
@@ -286,6 +301,17 @@ export function runFilter(
       if (passes(places[i]!)) matched.push(i);
   } else {
     for (let i = 0; i < places.length; i++) if (passes(places[i]!)) matched.push(i);
+  }
+
+  // Event lists read chronologically: sort only when the caller asked a
+  // dated question, so undated queries keep stable id order (and the
+  // reference tests their exact ordering).
+  if (dated) {
+    matched.sort((a, b) => {
+      const pa = places[a]!.d1 ?? '';
+      const pb = places[b]!.d1 ?? '';
+      return pa < pb ? -1 : pa > pb ? 1 : a - b;
+    });
   }
 
   return {

@@ -27,6 +27,14 @@ const eventSchema = z
     tags: z.array(z.string().min(1).max(64)).max(12).optional(),
     cluster: z.enum(CLUSTER_KEYS).optional(),
     minGrade: z.number().int().min(1).max(5).optional(),
+    // find_events aggregates. Counters only; verified 28 Aug via Supabase MCP
+    // that args_summary is free-shape jsonb under a 2048-byte check, so no
+    // migration accompanies these keys.
+    category: z.string().min(1).max(64).optional(),
+    month: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
     resultTotal: z.number().int().min(0).max(100000),
     zeroResult: z.boolean(),
   })
@@ -136,6 +144,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ...(e.tags && e.tags.length > 0 ? { tags: e.tags } : {}),
       ...(e.cluster ? { cluster: e.cluster } : {}),
       ...(e.minGrade !== undefined ? { minGrade: e.minGrade } : {}),
+      ...(e.category ? { category: e.category } : {}),
+      ...(e.month ? { month: e.month } : {}),
     },
     result_total: e.resultTotal,
     zero_result: e.zeroResult,

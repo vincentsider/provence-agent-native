@@ -24,6 +24,7 @@ import {
   type PublicPlace,
   type Vocab,
   CANONICAL_HOST,
+  categoryOf,
 } from './types';
 
 export interface ViewState {
@@ -75,16 +76,26 @@ export class Store {
   async #load(): Promise<void> {
     try {
       const manifest = await fetchJson<{
-        files: { catalog: string; vocab: string };
+        files: { catalog: string; vocab: string; events?: string };
       }>(`${DATA_BASE}/manifest.json`);
-      const [catalog, vocab] = await Promise.all([
+      const [catalog, vocab, events] = await Promise.all([
         fetchJson<Catalog>(`${DATA_BASE}/${manifest.files.catalog}`),
         fetchJson<Vocab>(`${DATA_BASE}/${manifest.files.vocab}`),
+        manifest.files.events
+          ? fetchJson<Catalog>(`${DATA_BASE}/${manifest.files.events}`).catch(() => null)
+          : Promise.resolve(null),
       ]);
-      this.#catalog = catalog;
+      // Events merge behind the guides records so guide indices stay stable
+      // whether or not the events artefact exists (it is optional and its
+      // failure must never cost the main catalogue).
+      const merged: Catalog =
+        events && events.places.length > 0
+          ? { version: 1, places: [...catalog.places, ...events.places] }
+          : catalog;
+      this.#catalog = merged;
       this.#vocab = vocab;
-      this.#indexes = buildIndexes(catalog, vocab);
-      this.#patch({ loadState: 'ready', total: catalog.places.length });
+      this.#indexes = buildIndexes(merged, vocab);
+      this.#patch({ loadState: 'ready', total: merged.places.length });
     } catch (err) {
       // The page must stay usable (S6): surface the failure, keep tools
       // answering with a typed "catalogue unavailable" error.
@@ -245,6 +256,7 @@ export class Store {
       const slug = this.#vocab.tags[String(id)]?.slug;
       if (slug) slugs.add(slug);
     }
+    const category = categoryOf(p.u);
     return {
       id: p.id,
       name: p.n,
@@ -257,6 +269,9 @@ export class Store {
       lng: p.lng,
       summary: p.s,
       image: p.img ? `https://${CANONICAL_HOST}${p.img}` : null,
+      // Agenda records only: dates + URL-derived category.
+      ...(p.d1 !== undefined ? { startDate: p.d1, endDate: p.d2 ?? null } : {}),
+      ...(category ? { category } : {}),
     };
   }
 }

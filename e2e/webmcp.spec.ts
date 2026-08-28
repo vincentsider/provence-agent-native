@@ -48,7 +48,7 @@ test.describe('webmcp tools', () => {
       async () => {
         const mc = (document as never as { modelContext: { getTools(): Promise<unknown[]> } })
           .modelContext;
-        return (await mc.getTools()).length >= 9;
+        return (await mc.getTools()).length >= 10;
       },
       { timeout: 5_000 },
     );
@@ -84,6 +84,48 @@ test.describe('webmcp tools', () => {
     );
     // And the Demand Mirror recorded it.
     await expect(page.getByTestId('mirror-entries')).toContainText('filter_places');
+  });
+
+  test('find_events answers October 2026 chronologically', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+
+    const result = await page.evaluate(async () => {
+      const mc = (
+        document as never as {
+          modelContext: {
+            getTools(): Promise<Array<{ name: string }>>;
+            executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+          };
+        }
+      ).modelContext;
+      const tools = await mc.getTools();
+      const tool = tools.find((t) => t.name === 'find_events');
+      if (!tool) throw new Error('find_events not registered');
+      const raw = await mc.executeTool(tool, JSON.stringify({ month: '2026-10', limit: 40 }));
+      return JSON.parse(raw) as {
+        data: {
+          total: number;
+          results: Array<{ startDate?: string | null; endDate?: string | null; url: string; category?: string }>;
+        };
+      };
+    });
+
+    expect(result.data.total).toBeGreaterThan(0);
+    let prev = '';
+    for (const r of result.data.results) {
+      expect(r.url).toContain('https://www.myprovence.fr/agenda/');
+      // Every result overlaps October 2026...
+      const start = r.startDate ?? '';
+      const end = r.endDate ?? start;
+      expect(start <= '2026-10-31' && end >= '2026-10-01').toBe(true);
+      // ...and arrives chronologically.
+      expect(start >= prev).toBe(true);
+      prev = start;
+    }
   });
 
   test('an unknown slug returns suggestions, not an empty set', async ({ page }) => {

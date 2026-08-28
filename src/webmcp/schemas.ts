@@ -138,6 +138,35 @@ export const highlightPlacesInput = z
   })
   .strict();
 
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD expected');
+
+export const findEventsInput = z
+  .object({
+    month: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, 'YYYY-MM expected')
+      .optional()
+      .describe('Whole-month shorthand, e.g. "2026-10" for October 2026. Overrides from/to.'),
+    from: isoDate.optional().describe('Window start (inclusive).'),
+    to: isoDate.optional().describe('Window end (inclusive).'),
+    category: z
+      .string()
+      .min(1)
+      .max(40)
+      .optional()
+      .describe(
+        'Agenda category slug from the event URLs, e.g. "concert", "marche", ' +
+          '"visites-guidees", "exposition". Unknown values return the valid list.',
+      ),
+    town: z.string().min(1).max(80).optional(),
+    tags: z.array(tagSlug).max(12).optional(),
+    limit: z.number().int().min(1).max(40).default(20),
+    offset: z.number().int().min(0).max(5000).default(0),
+  })
+  .strict();
+
 export const getAgentDemandInput = z
   .object({
     zeroResultsOnly: z

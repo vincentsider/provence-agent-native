@@ -5,7 +5,7 @@
  * modelContext getter must cost at most the tools — never the page.
  */
 
-import { registerAll, toolDefinitions } from '@/webmcp/tools';
+import { TOOL_COUNT, registerAll, toolDefinitions } from '@/webmcp/tools';
 
 type AnyDoc = { modelContext?: unknown };
 
@@ -98,6 +98,7 @@ describe('registerAll resilience', () => {
           'compare_places',
           'explain_vocabulary',
           'filter_places',
+          'find_events',
           'find_near',
           'get_agent_demand',
           'get_catalog_stats',
@@ -106,6 +107,7 @@ describe('registerAll resilience', () => {
           'set_view',
         ].sort(),
       );
+      expect(seen).toHaveLength(TOOL_COUNT);
       for (const t of seen) {
         // Derived schemas stay strict all the way to the agent.
         expect(t.inputSchema?.additionalProperties).toBe(false);
@@ -117,7 +119,7 @@ describe('registerAll resilience', () => {
 });
 
 describe('toolDefinitions', () => {
-  it('exposes exactly nine definitions without side effects', () => {
-    expect(toolDefinitions()).toHaveLength(9);
+  it('exposes exactly TOOL_COUNT definitions without side effects', () => {
+    expect(toolDefinitions()).toHaveLength(TOOL_COUNT);
   });
 });

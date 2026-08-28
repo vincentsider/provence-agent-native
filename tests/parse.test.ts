@@ -125,15 +125,54 @@ describe('parseDetailPage', () => {
   });
 });
 
+const EVENT_SAMPLE = `
+<link rel="canonical" href="https://www.myprovence.fr/agenda/theatre/pertuis/le-schpountz" />
+<article data-history-node-id="900" role="article" about="/agenda/theatre/pertuis/le-schpountz" class="node--type--poi node--view-mode--full">
+  <img src="/sites/default/files/styles/main/public/poi/1/aff.jpg?itok=z" />
+</article>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TheaterEvent","name":"Le Schpountz","startDate":"2026-10-08T00:00:00+02:00","endDate":"2026-10-10T00:00:00+02:00","location":{"@type":"Place","address":{"@type":"PostalAddress","addressLocality":"Pertuis"}}}</script>
+`;
+
+describe('parseDetailPage on events', () => {
+  it('reads Event JSON-LD dates as ISO days and the town from location', () => {
+    const d = parseDetailPage(EVENT_SAMPLE, '/agenda/theatre/pertuis/le-schpountz');
+    expect(d.d1).toBe('2026-10-08');
+    expect(d.d2).toBe('2026-10-10');
+    expect(d.town).toBe('Pertuis');
+    expect(d.name).toBe('Le Schpountz');
+    expect(d.redirected).toBe(false);
+  });
+
+  it('falls back to the visible time range when no Event JSON-LD exists', () => {
+    const html =
+      '<link rel="canonical" href="https://www.myprovence.fr/agenda/marche/aix/marche-x" />' +
+      '<article about="/agenda/marche/aix/marche-x" class="node--type--poi">' +
+      '<time datetime="2026-09-01T12:00:00Z">1 sept</time> au <time datetime="2026-12-20T12:00:00Z">20 dec</time>' +
+      '</article>';
+    const d = parseDetailPage(html, '/agenda/marche/aix/marche-x');
+    expect(d.d1).toBe('2026-09-01');
+    expect(d.d2).toBe('2026-12-20');
+  });
+
+  it('leaves undated events null', () => {
+    const html =
+      '<link rel="canonical" href="https://www.myprovence.fr/agenda/exposition/marseille/expo-x" />' +
+      '<article about="/agenda/exposition/marseille/expo-x" class="node--type--poi"></article>';
+    const d = parseDetailPage(html, '/agenda/exposition/marseille/expo-x');
+    expect(d.d1).toBeNull();
+    expect(d.d2).toBeNull();
+  });
+});
+
 describe('pathToTown', () => {
   it('extracts the town segment', () => {
     expect(
-      pathToTown('/les-guides/hebergements/hotels/aix-en-provence/domaine-gao', 'hebergements/hotels'),
+      pathToTown('/les-guides/hebergements/hotels/aix-en-provence/domaine-gao', '/les-guides/hebergements/hotels/'),
     ).toBe('Aix En Provence');
     // loisirs paths insert a subcategory: town is second-to-last, not first
     expect(
-      pathToTown('/les-guides/loisirs/artisans-et-producteurs/eyragues/les-arts-au-soleil', 'loisirs'),
+      pathToTown('/les-guides/loisirs/artisans-et-producteurs/eyragues/les-arts-au-soleil', '/les-guides/loisirs/'),
     ).toBe('Eyragues');
-    expect(pathToTown('/les-guides/loisirs/only-slug', 'loisirs')).toBeNull();
+    expect(pathToTown('/les-guides/loisirs/only-slug', '/les-guides/loisirs/')).toBeNull();
   });
 });

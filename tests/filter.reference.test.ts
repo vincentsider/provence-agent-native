@@ -21,6 +21,7 @@ function rng(seed: number): () => number {
   };
 }
 
+const HUB_CLUSTER_COUNT = CLUSTERS.filter((c) => c.hubPath !== null).length;
 const TAG_IDS = Array.from({ length: 60 }, (_, i) => 100 + i);
 const TOWNS = ['Marseille', 'Aix-en-Provence', 'Cassis', 'Arles', 'Aubagne'];
 
@@ -32,7 +33,9 @@ function synthCatalog(n: number, seed: number): { catalog: Catalog; vocab: Vocab
     const hasGeo = rand() < 0.9;
     places.push({
       id: i + 1,
-      c: Math.floor(rand() * CLUSTERS.length),
+      // Guides fixtures live only in hub clusters, like real guides records:
+      // the sixth cluster (agenda) is reserved for dated event fixtures.
+      c: Math.floor(rand() * HUB_CLUSTER_COUNT),
       n: `Place ${i + 1}`,
       t: rand() < 0.95 ? Math.floor(rand() * TOWNS.length) : -1,
       lat: hasGeo ? 43 + rand() * 1.2 : null,
@@ -148,6 +151,109 @@ describe('runFilter vs reference', () => {
       (p) => p.lat !== null && haversineKm(center.lat, center.lng, p.lat, p.lng!) <= 20,
     ).length;
     expect(result.total).toBe(brute);
+  });
+});
+
+describe('date-overlap filtering (events)', () => {
+  // Synthetic agenda records appended after the guides fixture, exactly as
+  // the Store merges the events artefact behind the catalogue.
+  const base = synthCatalog(300, 11);
+  const AGENDA_IDX = CLUSTERS.findIndex((c) => c.key === 'agenda');
+  const rand = rng(77);
+  const events: Place[] = Array.from({ length: 400 }, (_, i) => {
+    const m = 1 + Math.floor(rand() * 12);
+    const day = 1 + Math.floor(rand() * 27);
+    const undated = rand() < 0.15;
+    const spanDays = rand() < 0.4 ? Math.floor(rand() * 40) : 0;
+    const d1 = undated ? null : `2026-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    let d2: string | null = null;
+    if (d1 && spanDays > 0) {
+      const end = new Date(`${d1}T12:00:00Z`);
+      end.setUTCDate(end.getUTCDate() + spanDays);
+      d2 = end.toISOString().slice(0, 10);
+    }
+    return {
+      id: 100000 + i,
+      c: AGENDA_IDX,
+      n: `Event ${i}`,
+      t: Math.floor(rand() * TOWNS.length),
+      lat: null,
+      lng: null,
+      g: null,
+      tags: [],
+      u: `/agenda/${i % 2 ? 'concert' : 'marche'}/ville/event-${i}`,
+      s: '',
+      img: null,
+      d1,
+      d2,
+    };
+  });
+  const catalog: Catalog = { version: 1, places: [...base.catalog.places, ...events] };
+  const idx = buildIndexes(catalog, base.vocab);
+
+  const overlaps = (p: Place, from: string, to: string) => {
+    if (p.d1 === undefined || p.d1 === null) return false;
+    const end = p.d2 ?? p.d1;
+    return !(end < from || p.d1 > to);
+  };
+
+  it('matches the naive overlap reference for October 2026, sorted by start', () => {
+    const from = '2026-10-01';
+    const to = '2026-10-31';
+    const expected = catalog.places
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => p.c === AGENDA_IDX && overlaps(p, from, to))
+      .sort((a, b) => {
+        const da = a.p.d1 ?? '';
+        const db = b.p.d1 ?? '';
+        return da < db ? -1 : da > db ? 1 : a.i - b.i;
+      })
+      .map(({ i }) => i);
+    const got = runFilter(catalog, idx, {
+      cluster: 'agenda',
+      from,
+      to,
+      limit: 500,
+      offset: 0,
+    });
+    expect(got.total).toBe(expected.length);
+    expect([...got.indices]).toEqual(expected);
+    expect(expected.length).toBeGreaterThan(0);
+  });
+
+  it('a spanning event matches a window inside its range', () => {
+    const spanning = catalog.places.findIndex(
+      (p) => p.d1 && p.d2 && p.d1 < '2026-06-01' && p.d2 > '2026-06-30',
+    );
+    if (spanning >= 0) {
+      const got = runFilter(catalog, idx, {
+        cluster: 'agenda',
+        from: '2026-06-10',
+        to: '2026-06-12',
+        limit: 500,
+        offset: 0,
+      });
+      expect([...got.indices]).toContain(spanning);
+    }
+  });
+
+  it('undated records never match a dated query but appear in open browse', () => {
+    const dated = runFilter(catalog, idx, {
+      cluster: 'agenda', from: '2026-01-01', to: '2026-12-31', limit: 500, offset: 0,
+    });
+    const open = runFilter(catalog, idx, { cluster: 'agenda', limit: 500, offset: 0 });
+    const undatedCount = events.filter((e) => e.d1 === null).length;
+    expect(open.total - dated.total).toBe(undatedCount);
+  });
+
+  it('category narrows by URL segment', () => {
+    const got = runFilter(catalog, idx, {
+      cluster: 'agenda', category: 'concert', limit: 500, offset: 0,
+    });
+    const expected = catalog.places.filter(
+      (p) => p.c === AGENDA_IDX && p.u.startsWith('/agenda/concert/'),
+    ).length;
+    expect(got.total).toBe(expected);
   });
 });
 

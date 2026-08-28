@@ -28,6 +28,9 @@ interface PendingAggregate {
   readonly tags?: readonly string[];
   readonly cluster?: string;
   readonly minGrade?: number;
+  /** find_events aggregates: category slug and queried month (YYYY-MM). */
+  readonly category?: string;
+  readonly month?: string;
   readonly resultTotal: number;
   readonly zeroResult: boolean;
 }
@@ -88,6 +91,13 @@ export class DemandLog {
         tags: Array.isArray(args.tags) ? (args.tags as string[]).slice(0, 12) : undefined,
         cluster: typeof args.cluster === 'string' ? args.cluster : undefined,
         minGrade: typeof args.minGrade === 'number' ? args.minGrade : undefined,
+        category: typeof args.category === 'string' ? args.category.slice(0, 64) : undefined,
+        month:
+          typeof args.month === 'string'
+            ? args.month.slice(0, 7)
+            : typeof args.from === 'string'
+              ? args.from.slice(0, 7)
+              : undefined,
         resultTotal: total,
         zeroResult: total === 0,
       };

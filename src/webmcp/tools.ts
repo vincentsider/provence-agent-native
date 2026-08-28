@@ -18,11 +18,12 @@ import { errorEnvelope, envelope } from '@/lib/envelope';
 import { getDemandLog } from '@/lib/demand';
 import { UnknownSlugError, UnknownTownError } from '@/lib/engine';
 import { getStore, type Store } from '@/lib/store';
-import { fold } from '@/lib/types';
+import { CLUSTERS, categoryOf, fold } from '@/lib/types';
 import { listVocabulary } from '@/lib/vocab';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   comparePlacesInput,
+  findEventsInput,
   explainVocabularyInput,
   filterPlacesInput,
   findNearInput,
@@ -132,6 +133,13 @@ function makeExecute<S extends z.ZodType>(
       });
     }
   };
+}
+
+/** "2026-10" -> ["2026-10-01", "2026-10-31"]; month lengths matter. */
+function monthRange(month: string): [string, string] {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return [`${month}-01`, `${month}-${String(last).padStart(2, '0')}`];
 }
 
 interface ToolDef {
@@ -325,6 +333,76 @@ function defs(): ToolDef[] {
       },
     }),
     tool({
+      name: 'find_events',
+      title: 'Find events',
+      description:
+        "Search the myProvence agenda: 3800+ dated events (concerts, guided tours, " +
+        'exhibitions, markets, festivals...) in the Bouches-du-Rhône. Filter by a date ' +
+        'window (month: "2026-10" for October) or from/to dates, by category slug, town ' +
+        'and tags. Results come back chronologically with startDate/endDate, the ' +
+        'canonical myprovence.fr URL and a photo, and highlight on the shared map. ' +
+        'Undated permanent events never match a dated query.',
+      schema: findEventsInput,
+      readOnly: true,
+      untrusted: true,
+      handler: (input: z.output<typeof findEventsInput>, store) => {
+        let from = input.from;
+        let to = input.to;
+        if (input.month) [from, to] = monthRange(input.month);
+
+        // Closed vocabulary for categories, derived from the data itself so
+        // it can never drift from the catalogue (same self-correcting error
+        // pattern as tags and towns).
+        if (input.category !== undefined) {
+          const agendaIdx = CLUSTERS.findIndex((c) => c.key === 'agenda');
+          const known = new Set<string>();
+          for (const p of store.catalog.places) {
+            if (p.c === agendaIdx) {
+              const cat = categoryOf(p.u);
+              if (cat) known.add(cat);
+            }
+          }
+          if (!known.has(input.category)) {
+            return {
+              total: 0,
+              data: {
+                error: 'unknown_category',
+                requested: input.category,
+                validCategories: [...known].sort(),
+              },
+            };
+          }
+        }
+
+        const { total, places } = store.filter(
+          {
+            cluster: 'agenda',
+            category: input.category,
+            town: input.town,
+            tags: input.tags,
+            // Only constrain (and sort) by date when the agent asked for a
+            // window: an open browse must still surface undated permanent
+            // events, which a window excludes by design.
+            ...(from !== undefined || to !== undefined ? { from, to } : {}),
+            limit: input.limit,
+            offset: input.offset,
+          },
+          'agent',
+        );
+        return {
+          total,
+          data: {
+            window: { from: from ?? null, to: to ?? null },
+            total,
+            returned: places.length,
+            offset: input.offset,
+            truncated: total > input.offset + places.length,
+            results: places.map((p) => store.toPublicShape(p)),
+          },
+        };
+      },
+    }),
+    tool({
       name: 'get_catalog_stats',
       title: 'Catalogue statistics',
       description:
@@ -392,6 +470,9 @@ function defs(): ToolDef[] {
   ];
 }
 
+/** Single source of truth for the registered tool count (badge, tests, E2E). */
+export const TOOL_COUNT = 10;
+
 let registered = false;
 
 /**
@@ -451,7 +532,7 @@ export function registerAll(): void {
         const visible = (await mc.getTools()).filter((t) => names.has(t.name)).length;
         patchWebMcpStatus({ verified: visible });
         // eslint-disable-next-line no-console
-        console.info(`[webmcp] ${visible}/9 site tools verified via getTools()`);
+        console.info(`[webmcp] ${visible}/${TOOL_COUNT} site tools verified via getTools()`);
       }
     } catch {
       patchWebMcpStatus({ verified: null });

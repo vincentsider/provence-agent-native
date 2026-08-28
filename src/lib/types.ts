@@ -6,12 +6,19 @@
  * See Docs/V1.5/webmcp/IMPLEMENTATION_PLAN.md (geotravel repo) section 5.1.
  */
 
+/**
+ * The six catalogue segments. `hubPath` is the listing page under
+ * /les-guides (null = no hub stage: agenda is enumerated from the sitemap
+ * only). `sitemapPrefix` is explicit because two call sites once hardcoded
+ * "/les-guides/" and would have silently skipped the agenda.
+ */
 export const CLUSTERS = [
-  { key: 'hotels', path: 'hebergements/hotels' },
-  { key: 'campings', path: 'hebergements/campings' },
-  { key: 'chambres-d-hotes', path: 'hebergements/chambres-d-hotes' },
-  { key: 'loisirs', path: 'loisirs' },
-  { key: 'itineraires', path: 'itineraires' },
+  { key: 'hotels', hubPath: 'hebergements/hotels', sitemapPrefix: '/les-guides/hebergements/hotels/' },
+  { key: 'campings', hubPath: 'hebergements/campings', sitemapPrefix: '/les-guides/hebergements/campings/' },
+  { key: 'chambres-d-hotes', hubPath: 'hebergements/chambres-d-hotes', sitemapPrefix: '/les-guides/hebergements/chambres-d-hotes/' },
+  { key: 'loisirs', hubPath: 'loisirs', sitemapPrefix: '/les-guides/loisirs/' },
+  { key: 'itineraires', hubPath: 'itineraires', sitemapPrefix: '/les-guides/itineraires/' },
+  { key: 'agenda', hubPath: null, sitemapPrefix: '/agenda/' },
 ] as const;
 
 export type ClusterKey = (typeof CLUSTERS)[number]['key'];
@@ -46,6 +53,12 @@ export interface Place {
   readonly s: string;
   /** First photo: site-relative path incl. style variant + itok. null if none. */
   readonly img: string | null;
+  /** Event start date (YYYY-MM-DD). Present only on agenda records; an
+   *  undated event (permanent exposition) carries null and never matches a
+   *  dated query. Absent entirely on guides records: zero wire bytes. */
+  readonly d1?: string | null;
+  /** Event end date, when the source states one. */
+  readonly d2?: string | null;
 }
 
 export interface VocabTag {
@@ -81,12 +94,22 @@ export interface Manifest {
   readonly source: 'public' | 'relay';
   readonly counts: {
     readonly places: number;
+    /** Agenda records, shipped in the separate events artefact. */
+    readonly events?: number;
     readonly tags: number;
     readonly towns: number;
     readonly perCluster: Readonly<Record<ClusterKey, number>>;
   };
-  readonly files: { readonly catalog: string; readonly vocab: string };
-  readonly sha256: { readonly catalog: string; readonly vocab: string };
+  readonly files: {
+    readonly catalog: string;
+    readonly vocab: string;
+    readonly events?: string;
+  };
+  readonly sha256: {
+    readonly catalog: string;
+    readonly vocab: string;
+    readonly events?: string;
+  };
 }
 
 /** The compact shape every tool result exposes. Explicit allowlist: a field
@@ -104,6 +127,10 @@ export interface PublicPlace {
   readonly summary: string;
   /** Absolute photo URL on myprovence.fr, or null. */
   readonly image: string | null;
+  /** Agenda records only: ISO start/end dates and the URL-derived category. */
+  readonly startDate?: string | null;
+  readonly endDate?: string | null;
+  readonly category?: string;
 }
 
 export interface FilterInput {
@@ -112,6 +139,13 @@ export interface FilterInput {
   readonly anyTags?: readonly string[];
   readonly town?: string;
   readonly minGrade?: number;
+  /** Date-overlap window (YYYY-MM-DD, inclusive): a record matches when
+   *  [d1, d2 ?? d1] intersects [from, to]. Records without d1 never match a
+   *  dated query. Setting either also sorts results chronologically. */
+  readonly from?: string;
+  readonly to?: string;
+  /** /agenda/<category>/... URL segment; validated by the caller. */
+  readonly category?: string;
   readonly limit: number;
   readonly offset: number;
 }
@@ -119,6 +153,12 @@ export interface FilterInput {
 export interface FilterResult {
   readonly total: number;
   readonly indices: readonly number[];
+}
+
+/** URL-derived event category: /agenda/<cat>/... -> "<cat>", else null. */
+export function categoryOf(path: string): string | null {
+  const m = /^\/agenda\/([a-z0-9-]+)\//.exec(path);
+  return m ? m[1]! : null;
 }
 
 /** Fold accents/case for matching: "Aix-en-Provence" -> "aix-en-provence". */
