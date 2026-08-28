@@ -5,7 +5,7 @@
  * answers.
  */
 
-import { buildIndexes, runFilter, runFindNear, haversineKm } from '@/lib/engine';
+import { buildIndexes, clusterScope, runFilter, runFindNear, haversineKm } from '@/lib/engine';
 import type { Catalog, FilterInput, Place, Vocab, VocabTag } from '@/lib/types';
 import { CLUSTERS, fold } from '@/lib/types';
 
@@ -257,6 +257,52 @@ describe('date-overlap filtering (events)', () => {
   });
 });
 
+describe('clusterScope (per-hub facet populations)', () => {
+  const { catalog, vocab } = synthCatalog(800, 33);
+  const idx = buildIndexes(catalog, vocab);
+
+  it('matches a naive per-cluster count for every hub cluster', () => {
+    for (let c = 0; c < HUB_CLUSTER_COUNT; c++) {
+      const scope = clusterScope(catalog, idx, c);
+      // naive reference
+      const naive = new Map<number, number>();
+      const naiveTowns = new Set<number>();
+      for (const p of catalog.places) {
+        if (p.c !== c) continue;
+        if (p.t >= 0) naiveTowns.add(p.t);
+        for (const t of new Set(p.tags)) naive.set(t, (naive.get(t) ?? 0) + 1);
+      }
+      expect(Object.fromEntries(scope.tagCounts)).toEqual(Object.fromEntries(naive));
+      expect([...scope.townIndices].sort()).toEqual([...naiveTowns].sort());
+    }
+  });
+
+  it('canonicalises aliases: a record tagged with the alias counts under the canonical', () => {
+    const aliased = {
+      ...vocab,
+      tags: { ...vocab.tags, '100': { ...vocab.tags['100']!, aliases: [101] } },
+    };
+    const idx2 = buildIndexes(catalog, aliased);
+    const scope = clusterScope(catalog, idx2, -1);
+    const naiveUnion = catalog.places.filter(
+      (p) => p.tags.includes(100) || p.tags.includes(101),
+    ).length;
+    expect(scope.tagCounts.get(100)).toBe(naiveUnion);
+    expect(scope.tagCounts.has(101)).toBe(false);
+  });
+
+  it('the whole-catalogue scope covers every cluster', () => {
+    const all = clusterScope(catalog, idx, -1);
+    let sum = 0;
+    for (let c = 0; c < CLUSTERS.length; c++) {
+      for (const n of clusterScope(catalog, idx, c).tagCounts.values()) sum += n;
+    }
+    let allSum = 0;
+    for (const n of all.tagCounts.values()) allSum += n;
+    expect(allSum).toBe(sum);
+  });
+});
+
 describe('free-text query search', () => {
   const { catalog, vocab } = synthCatalog(500, 21);
   // Give a few records distinctive names/summaries.
@@ -285,6 +331,24 @@ describe('free-text query search', () => {
   it('folds accents: marche matches Marché', () => {
     const got = runFilter(cat2, idx, { query: 'marche nocturne', limit: 40, offset: 0 });
     expect([...got.indices]).toContain(77);
+  });
+
+  it('is a KEYWORD search: a tag label matches even when absent from name and summary', () => {
+    // Record 42's tags include some ids; give one of them the label "Piscine
+    // chauffée" and search for "piscine" — the summary never says it.
+    const someTag = places[42]!.tags[0];
+    if (someTag !== undefined) {
+      const vocab2 = {
+        ...vocab,
+        tags: {
+          ...vocab.tags,
+          [String(someTag)]: { ...vocab.tags[String(someTag)]!, label: 'Piscine chauffée' },
+        },
+      };
+      const idx2 = buildIndexes(cat2, vocab2);
+      const got = runFilter(cat2, idx2, { query: 'piscine', limit: 500, offset: 0 });
+      expect([...got.indices]).toContain(42);
+    }
   });
 
   it('combines with other constraints', () => {

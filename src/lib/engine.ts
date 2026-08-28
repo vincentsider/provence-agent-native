@@ -123,9 +123,19 @@ export function buildIndexes(catalog: Catalog, vocab: Vocab): Indexes {
     }
   }
 
-  const searchBlobs = places.map((p) =>
-    fold(`${p.n} ${p.t >= 0 ? (vocab.towns[p.t] ?? '') : ''} ${p.s}`),
-  );
+  // Canonical folded label per term id, so query search is a true KEYWORD
+  // search: "piscine" must hit a record TAGGED piscine even when the word
+  // never appears in its summary.
+  const foldedLabelById = new Map<number, string>();
+  for (const [idStr, tag] of Object.entries(vocab.tags)) {
+    foldedLabelById.set(Number(idStr), fold(tag.label));
+  }
+  const searchBlobs = places.map((p) => {
+    const labels = p.tags
+      .map((t) => foldedLabelById.get(aliasToCanonical.get(t) ?? t) ?? '')
+      .join(' ');
+    return fold(`${p.n} ${p.t >= 0 ? (vocab.towns[p.t] ?? '') : ''} ${p.s}`) + ' ' + labels;
+  });
 
   return {
     postings,
@@ -338,6 +348,46 @@ export function runFilter(
     total: matched.length,
     indices: matched.slice(input.offset, input.offset + input.limit),
   };
+}
+
+export interface ClusterScope {
+  /** canonical term id -> record count within the cluster (null = all). */
+  readonly tagCounts: ReadonlyMap<number, number>;
+  /** town indices present within the cluster. */
+  readonly townIndices: ReadonlySet<number>;
+}
+
+/**
+ * Facet populations scoped to one cluster, alias-canonicalised — the same
+ * numbers myprovence.fr shows on each hub's own facet list. Pure; the Store
+ * memoizes per cluster.
+ */
+export function clusterScope(
+  catalog: Catalog,
+  idx: Indexes,
+  clusterIdx: number, // -1 = whole catalogue
+): ClusterScope {
+  const tagCounts = new Map<number, number>();
+  const townIndices = new Set<number>();
+  const indices =
+    clusterIdx >= 0
+      ? (idx.byCluster[clusterIdx] ?? new Uint16Array(0))
+      : catalog.places.map((_, i) => i);
+  for (const i of indices) {
+    const p = catalog.places[i]!;
+    if (p.t >= 0) townIndices.add(p.t);
+    // Count each canonical id once per record, even when a record carries
+    // both an alias and its canonical.
+    const seen = new Set<number>();
+    for (const t of p.tags) {
+      const canonical = idx.aliasToCanonical.get(t) ?? t;
+      if (!seen.has(canonical)) {
+        seen.add(canonical);
+        tagCounts.set(canonical, (tagCounts.get(canonical) ?? 0) + 1);
+      }
+    }
+  }
+  return { tagCounts, townIndices };
 }
 
 const EARTH_RADIUS_KM = 6371;

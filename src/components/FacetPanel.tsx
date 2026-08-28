@@ -8,7 +8,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Store } from '@/lib/store';
-import { aliasIds } from '@/lib/vocab';
 import { fold, type ClusterKey } from '@/lib/types';
 
 export interface UiFilter {
@@ -33,28 +32,42 @@ export function FacetPanel({
   const t = useTranslations('filters');
   const [query, setQuery] = useState('');
 
+  // Facets scoped to the active cluster tab, exactly like each myprovence.fr
+  // hub shows its OWN facet list with its own populations, count-descending.
+  const scope = useMemo(() => {
+    if (!store.isReady) return null;
+    return store.scopeFor(filter.cluster);
+    // store.vocab is REPLACED when the catalogue loads; depending on the
+    // stable store object left this memo permanently empty (first-paint bug).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, store.vocab, filter.cluster]);
+
   const tags = useMemo(() => {
-    const hidden = aliasIds(store.vocab);
+    if (!scope) return [];
     const needle = fold(query);
-    return Object.entries(store.vocab.tags)
-      .filter(([id, tag]) => tag.n > 0 && !hidden.has(Number(id)))
-      .map(([, tag]) => tag)
+    return [...scope.tagCounts.entries()]
+      .map(([id, n]) => {
+        const tag = store.vocab.tags[String(id)];
+        return tag ? { slug: tag.slug, label: tag.label, n } : null;
+      })
+      .filter((tag): tag is { slug: string; label: string; n: number } => tag !== null)
       .filter(
         (tag) =>
           needle === '' || fold(tag.label).includes(needle) || tag.slug.includes(needle),
       )
-      .sort((a, b) => b.n - a.n)
+      .sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'fr'))
       .slice(0, VISIBLE_TAGS);
-    // store.vocab is REPLACED when the catalogue loads; depending on the
-    // stable store object left this memo permanently empty (first-paint bug).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.vocab, query]);
+  }, [scope, store.vocab, query]);
 
-  const towns = useMemo(
-    () => [...store.vocab.towns].sort((a, b) => a.localeCompare(b, 'fr')),
+  const towns = useMemo(() => {
+    if (!scope) return [];
+    return [...scope.townIndices]
+      .map((i) => store.vocab.towns[i])
+      .filter((town): town is string => town !== undefined)
+      .sort((a, b) => a.localeCompare(b, 'fr'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [store.vocab],
-  );
+  }, [scope, store.vocab]);
 
   const toggleTag = (slug: string) => {
     const has = filter.tags.includes(slug);

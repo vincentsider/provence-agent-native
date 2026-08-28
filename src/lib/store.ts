@@ -10,8 +10,10 @@
 import { aliasIds } from './vocab';
 import {
   buildIndexes,
+  clusterScope,
   runFilter,
   runFindNear,
+  type ClusterScope,
   type Indexes,
   type NearResult,
 } from './engine';
@@ -68,6 +70,8 @@ export class Store {
 
   #view: ViewState = INITIAL_VIEW;
   #listeners = new Set<() => void>();
+  /** Memoized per-cluster facet scopes (catalogue is immutable after load). */
+  #scopes = new Map<number, ClusterScope>();
 
   constructor() {
     this.ready = this.#load();
@@ -242,6 +246,20 @@ export class Store {
       withGeo,
       withTags,
     };
+  }
+
+  /** Facet populations for the active cluster tab (null = whole catalogue):
+   *  the same per-hub numbers myprovence.fr shows, memoized per cluster. */
+  scopeFor(cluster: ClusterKey | null): ClusterScope {
+    const idx = this.#requireIndexes();
+    const clusterIdx =
+      cluster === null ? -1 : CLUSTERS.findIndex((c) => c.key === cluster);
+    let scope = this.#scopes.get(clusterIdx);
+    if (!scope) {
+      scope = clusterScope(this.#catalog, idx, clusterIdx);
+      this.#scopes.set(clusterIdx, scope);
+    }
+    return scope;
   }
 
   /** The single choke point every outgoing record passes through (spec 8.5).

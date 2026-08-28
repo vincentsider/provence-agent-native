@@ -202,7 +202,10 @@ function Loaded() {
     <>
       <Masthead
         cluster={filter.cluster}
-        onCluster={(c) => setFilter((f) => ({ ...f, cluster: c }))}
+        // Switching hub resets tag/town selections, as on myprovence.fr:
+        // each hub carries its own facet universe, and a stale selection
+        // from another hub would silently zero the results.
+        onCluster={(c) => setFilter({ tags: [], town: null, cluster: c })}
       />
       <Hero />
 
