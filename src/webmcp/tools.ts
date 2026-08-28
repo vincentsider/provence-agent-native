@@ -190,6 +190,7 @@ function defs(): ToolDef[] {
       untrusted: true,
       handler: (input: z.output<typeof filterPlacesInput>, store) => {
         const { total, places } = store.filter(input, 'agent');
+        // input.query flows through FilterInput untouched.
         return {
           total,
           data: {
@@ -339,7 +340,8 @@ function defs(): ToolDef[] {
         "Search the myProvence agenda: 3800+ dated events (concerts, guided tours, " +
         'exhibitions, markets, festivals...) in the Bouches-du-Rhône. Filter by a date ' +
         'window (month: "2026-10" for October) or from/to dates, by category slug, town ' +
-        'and tags. Results come back chronologically with startDate/endDate, the ' +
+        'and tags, or free-text query over names up front (query: "street food"). ' +
+        'Results come back chronologically with startDate/endDate, the ' +
         'canonical myprovence.fr URL and a photo, and highlight on the shared map. ' +
         'Undated permanent events never match a dated query.',
       schema: findEventsInput,
@@ -380,6 +382,7 @@ function defs(): ToolDef[] {
             category: input.category,
             town: input.town,
             tags: input.tags,
+            query: input.query,
             // Only constrain (and sort) by date when the agent asked for a
             // window: an open browse must still surface undated permanent
             // events, which a window excludes by design.

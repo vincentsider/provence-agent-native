@@ -35,6 +35,10 @@ export interface Indexes {
   readonly byCluster: readonly Uint16Array[];
   /** alias term id -> canonical term id (display normalisation). */
   readonly aliasToCanonical: ReadonlyMap<number, number>;
+  /** Per-record folded haystack (name + town + summary) for query search.
+   *  ~2 MB for 6.4k records: the price of agents finding events by NAME
+   *  (field failure 28 Aug: "Street Food Festival" was unfindable). */
+  readonly searchBlobs: readonly string[];
 }
 
 export const GRID_CELL_DEG = 0.05;
@@ -119,6 +123,10 @@ export function buildIndexes(catalog: Catalog, vocab: Vocab): Indexes {
     }
   }
 
+  const searchBlobs = places.map((p) =>
+    fold(`${p.n} ${p.t >= 0 ? (vocab.towns[p.t] ?? '') : ''} ${p.s}`),
+  );
+
   return {
     postings,
     townByFold,
@@ -126,6 +134,7 @@ export function buildIndexes(catalog: Catalog, vocab: Vocab): Indexes {
     grid,
     byCluster: clusterLists.map((l) => Uint16Array.from(l)),
     aliasToCanonical,
+    searchBlobs,
   };
 }
 
@@ -274,7 +283,18 @@ export function runFilter(
   const from = input.from ?? '0000-01-01';
   const to = input.to ?? '9999-12-31';
 
-  const passes = (p: Place): boolean => {
+  const queryTerms =
+    input.query !== undefined
+      ? fold(input.query).split(/\s+/).filter((t) => t.length > 0)
+      : null;
+
+  const passes = (p: Place, recordIndex: number): boolean => {
+    if (queryTerms) {
+      const blob = idx.searchBlobs[recordIndex] ?? '';
+      for (const term of queryTerms) {
+        if (!blob.includes(term)) return false;
+      }
+    }
     if (clusterIdx >= 0 && p.c !== clusterIdx) return false;
     if (townIdx >= 0 && p.t !== townIdx) return false;
     if (input.minGrade !== undefined && (p.g === null || p.g < input.minGrade))
@@ -295,12 +315,12 @@ export function runFilter(
 
   const matched: number[] = [];
   if (candidates !== null) {
-    for (const i of candidates) if (passes(places[i]!)) matched.push(i);
+    for (const i of candidates) if (passes(places[i]!, i)) matched.push(i);
   } else if (clusterIdx >= 0) {
     for (const i of idx.byCluster[clusterIdx] ?? EMPTY)
-      if (passes(places[i]!)) matched.push(i);
+      if (passes(places[i]!, i)) matched.push(i);
   } else {
-    for (let i = 0; i < places.length; i++) if (passes(places[i]!)) matched.push(i);
+    for (let i = 0; i < places.length; i++) if (passes(places[i]!, i)) matched.push(i);
   }
 
   // Event lists read chronologically: sort only when the caller asked a

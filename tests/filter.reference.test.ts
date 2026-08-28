@@ -257,6 +257,48 @@ describe('date-overlap filtering (events)', () => {
   });
 });
 
+describe('free-text query search', () => {
+  const { catalog, vocab } = synthCatalog(500, 21);
+  // Give a few records distinctive names/summaries.
+  const places: Place[] = catalog.places.map((p, i) =>
+    i === 42
+      ? { ...p, n: 'Street Food Festival 2026', s: 'Cuisine du monde au parc' }
+      : i === 77
+        ? { ...p, n: 'Marché nocturne', s: 'food trucks et créateurs' }
+        : p,
+  );
+  const cat2: Catalog = { version: 1, places };
+  const idx = buildIndexes(cat2, vocab);
+
+  it('finds records by name, accent- and case-insensitively', () => {
+    const got = runFilter(cat2, idx, { query: 'STREET food', limit: 40, offset: 0 });
+    expect([...got.indices]).toContain(42);
+    expect([...got.indices]).not.toContain(77); // has food but not street
+  });
+
+  it('matches across name AND summary (all terms must hit)', () => {
+    const got = runFilter(cat2, idx, { query: 'food trucks', limit: 40, offset: 0 });
+    expect([...got.indices]).toContain(77);
+    expect([...got.indices]).not.toContain(42);
+  });
+
+  it('folds accents: marche matches Marché', () => {
+    const got = runFilter(cat2, idx, { query: 'marche nocturne', limit: 40, offset: 0 });
+    expect([...got.indices]).toContain(77);
+  });
+
+  it('combines with other constraints', () => {
+    const p42 = places[42]!;
+    const got = runFilter(cat2, idx, {
+      query: 'festival',
+      cluster: CLUSTERS[p42.c]!.key,
+      limit: 40,
+      offset: 0,
+    });
+    expect([...got.indices]).toContain(42);
+  });
+});
+
 describe('alias resolution', () => {
   it('canonical and alias slugs both search the UNION of both ids', () => {
     // Real-world shape: the same criterion lives under two term ids on

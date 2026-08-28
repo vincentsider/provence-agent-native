@@ -133,6 +133,12 @@ describe('fuzzing', () => {
     expect(findEventsInput.safeParse({ from: '2026-00-10' }).success).toBe(false);
   });
 
+  it('query is bounded on both search tools', () => {
+    expect(filterPlacesInput.safeParse({ query: 'street food' }).success).toBe(true);
+    expect(filterPlacesInput.safeParse({ query: 'x' }).success).toBe(false); // min 2
+    expect(findEventsInput.safeParse({ query: 'x'.repeat(81) }).success).toBe(false);
+  });
+
   it('find_near requires town or full coordinates', () => {
     expect(findNearInput.safeParse({ radiusKm: 5 }).success).toBe(false);
     expect(findNearInput.safeParse({ lat: 43.2, lng: 5.5 }).success).toBe(true);

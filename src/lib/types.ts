@@ -146,6 +146,9 @@ export interface FilterInput {
   readonly to?: string;
   /** /agenda/<category>/... URL segment; validated by the caller. */
   readonly category?: string;
+  /** Free-text search over name + summary + town, accent- and case-folded;
+   *  every whitespace-separated term must match. */
+  readonly query?: string;
   readonly limit: number;
   readonly offset: number;
 }

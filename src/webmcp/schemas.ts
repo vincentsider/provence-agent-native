@@ -51,6 +51,12 @@ export const filterPlacesInput = z
       .max(5)
       .optional()
       .describe('Minimum star rating (hotels).'),
+    query: z
+      .string()
+      .min(2)
+      .max(80)
+      .optional()
+      .describe('Free-text search over names, towns and summaries, accent-insensitive. Example: "street food".'),
     limit: z
       .number()
       .int()
@@ -162,6 +168,12 @@ export const findEventsInput = z
       ),
     town: z.string().min(1).max(80).optional(),
     tags: z.array(tagSlug).max(12).optional(),
+    query: z
+      .string()
+      .min(2)
+      .max(80)
+      .optional()
+      .describe('Free-text search over event names, towns and summaries, accent-insensitive. Example: "street food festival".'),
     limit: z.number().int().min(1).max(40).default(20),
     offset: z.number().int().min(0).max(5000).default(0),
   })
