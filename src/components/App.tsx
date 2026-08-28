@@ -47,6 +47,7 @@ export function App({
         <Masthead cluster={null} onCluster={null} />
         <Hero />
         <UpcomingStrip upcoming={upcoming} />
+        <SiteFooter snapshotDate={snapshotDate} />
       </>
     );
   }
@@ -331,24 +332,34 @@ function Loaded({
       </main>
 
       <UpcomingStrip upcoming={upcoming} />
-
-      <footer className="mt-10 bg-brand-petrol py-8 text-white/80">
-        <div className="mx-auto max-w-[1400px] px-5 font-slab text-[13px] leading-relaxed">
-          <p className="display-caps mb-2 text-[13px] text-brand-yellow">{t('brandTop')}</p>
-          <p>{tf('credit')}</p>
-          <p className="mt-1 text-white/50">
-            {t('sourceNote', { date: snapshotDate ?? '—' })} · {tf('notIndex')}
-          </p>
-          <p className="mt-1 text-white/50">
-            {tf('machine')}{' '}
-            <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events</a>
-            {' · '}
-            <a className="underline hover:text-brand-yellow" href="/agenda">/agenda</a>
-            {' · '}
-            <a className="underline hover:text-brand-yellow" href="/llms.txt">/llms.txt</a>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter snapshotDate={snapshotDate} />
     </>
+  );
+}
+
+/** Attribution + machine links, rendered in BOTH branches: the SSR shell is
+ *  what fetch-only agents read, and it must carry source and pointers too
+ *  (audit 5: the footer only existed after hydration). */
+function SiteFooter({ snapshotDate }: { snapshotDate: string | null }) {
+  const t = useTranslations('app');
+  const tf = useTranslations('footer');
+  return (
+    <footer className="mt-10 bg-brand-petrol py-8 text-white/80">
+      <div className="mx-auto max-w-[1400px] px-5 font-slab text-[13px] leading-relaxed">
+        <p className="display-caps mb-2 text-[13px] text-brand-yellow">{t('brandTop')}</p>
+        <p>{tf('credit')}</p>
+        <p className="mt-1 text-white/50">
+          {t('sourceNote', { date: snapshotDate ?? '—' })} · {tf('notIndex')}
+        </p>
+        <p className="mt-1 text-white/50">
+          {tf('machine')}{' '}
+          <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events</a>
+          {' · '}
+          <a className="underline hover:text-brand-yellow" href="/agenda">/agenda</a>
+          {' · '}
+          <a className="underline hover:text-brand-yellow" href="/llms.txt">/llms.txt</a>
+        </p>
+      </div>
+    </footer>
   );
 }
