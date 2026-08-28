@@ -179,6 +179,32 @@ export const findEventsInput = z
   })
   .strict();
 
+export const askVisitorInput = z
+  .object({
+    question: z
+      .string()
+      .min(5)
+      .max(160)
+      .describe('One short question, in the visitor language (French here).'),
+    options: z
+      .array(z.string().min(1).max(40))
+      .min(2)
+      .max(4)
+      .describe('2-4 short tappable choices.'),
+  })
+  .strict();
+
+export const getInputResultInput = z
+  .object({
+    input_id: z
+      .string()
+      .regex(/^q-[a-z0-9-]{1,40}$/, 'input_id from a previous ask_visitor call')
+      .describe('The pending ticket returned by ask_visitor.'),
+  })
+  .strict();
+
+export const getVisitorSignalsInput = z.object({}).strict();
+
 export const getAgentDemandInput = z
   .object({
     zeroResultsOnly: z

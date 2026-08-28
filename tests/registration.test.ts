@@ -74,7 +74,7 @@ describe('registerAll resilience', () => {
     });
   });
 
-  it('registers all nine tools with correct annotations when the API works', () => {
+  it('registers every tool with correct annotations when the API works', () => {
     jest.isolateModules(() => {
       const { registerAll: fresh } = require('@/webmcp/tools') as {
         registerAll: () => void;
@@ -95,6 +95,7 @@ describe('registerAll resilience', () => {
       fresh();
       expect(seen.map((t) => t.name).sort()).toEqual(
         [
+          'ask_visitor',
           'compare_places',
           'explain_vocabulary',
           'filter_places',
@@ -102,7 +103,9 @@ describe('registerAll resilience', () => {
           'find_near',
           'get_agent_demand',
           'get_catalog_stats',
+          'get_input_result',
           'get_place',
+          'get_visitor_signals',
           'highlight_places',
           'set_view',
         ].sort(),
@@ -113,7 +116,12 @@ describe('registerAll resilience', () => {
         expect(t.inputSchema?.additionalProperties).toBe(false);
       }
       const writeTools = seen.filter((t) => t.annotations?.readOnlyHint === false);
-      expect(writeTools.map((t) => t.name).sort()).toEqual(['highlight_places', 'set_view']);
+      // ask_visitor renders UI and waits: honestly not read-only.
+      expect(writeTools.map((t) => t.name).sort()).toEqual([
+        'ask_visitor',
+        'highlight_places',
+        'set_view',
+      ]);
     });
   });
 });

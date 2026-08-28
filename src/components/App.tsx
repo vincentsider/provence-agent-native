@@ -22,6 +22,7 @@ import { PlaceList } from './PlaceList';
 import { MapView } from './MapView';
 import { DemandMirror } from './DemandMirror';
 import { AgentPresence } from './AgentPresence';
+import { ElicitationCards } from './ElicitationCards';
 import type { UpcomingEvent } from '@/lib/build-data';
 
 if (typeof document !== 'undefined') {
@@ -335,6 +336,7 @@ function Loaded({
       <UpcomingStrip upcoming={upcoming} />
       <SiteFooter snapshotDate={snapshotDate} />
       <AgentPresence />
+      <ElicitationCards />
     </>
   );
 }

@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getPresenceBus, type PresenceEvent } from '@/lib/presence';
+import { getSignalsLog } from '@/lib/signals';
 
 const PARK_DELAY_MS = 5_000;
 const INTENT_FADE_MS = 3_500;
@@ -154,8 +155,19 @@ export function AgentPresence() {
     const unsubscribe = bus.subscribe(onEvent);
 
     // Yield: a human pointer during agent activity retires the body.
-    const onPointerDown = () => {
-      if (activeRef.current) bus.emit({ phase: 'yield' });
+    const onPointerDown = (ev: PointerEvent) => {
+      // Answering a question or dropping a ping is COLLABORATION, not a
+      // takeover: those taps must not retire the body.
+      const target = ev.target as Element | null;
+      if (target?.closest('[data-testid="elicitation-cards"],[data-testid="ping-wheel"]')) return;
+      if (activeRef.current) {
+        bus.emit({ phase: 'yield' });
+        try {
+          getSignalsLog().addYield();
+        } catch {
+          /* signals are theatre-adjacent */
+        }
+      }
     };
     document.addEventListener('pointerdown', onPointerDown, { capture: true });
 

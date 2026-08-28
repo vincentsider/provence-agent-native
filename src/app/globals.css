@@ -62,3 +62,22 @@
   .agent-flash, .ink-label { animation: none; }
   .ink-label { max-width: none; }
 }
+
+/* Visitor pings (issue #608): named nonverbal gestures on the map. */
+.ping-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #002731;
+  background: var(--tone, #ffe500);
+  color: #002731;
+  font-family: var(--font-display), 'Arial Black', sans-serif;
+  font-size: 12px;
+  animation: ping-drop 300ms ease-out;
+}
+@keyframes ping-drop {
+  0% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}

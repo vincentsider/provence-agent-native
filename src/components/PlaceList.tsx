@@ -8,13 +8,19 @@
  */
 
 import { useLocale, useTranslations } from 'next-intl';
+import { useSyncExternalStore } from 'react';
 import type { Store, ViewState } from '@/lib/store';
 import { CANONICAL_HOST, CLUSTERS } from '@/lib/types';
+import { getSignalsLog } from '@/lib/signals';
 
 const LIST_CAP = 40;
 
 export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
   const t = useTranslations('list');
+  // Locks (issue #608): the visitor's firm choices, visible on the card and
+  // readable by the agent through get_visitor_signals.
+  const signals = getSignalsLog();
+  useSyncExternalStore(signals.subscribe, signals.getSnapshot, signals.getSnapshot);
   const tc = useTranslations('clusters');
   const tf = useTranslations('filters');
   const locale = useLocale();
@@ -51,6 +57,25 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
                 className="group block"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-brand-paper">
+                  <button
+                    type="button"
+                    aria-label={signals.isLocked(p.id) ? 'Déverrouiller' : 'Verrouiller ce choix'}
+                    aria-pressed={signals.isLocked(p.id)}
+                    data-testid={`lock-${p.id}`}
+                    className={
+                      'absolute right-2 top-2 z-[2] flex h-7 w-7 items-center justify-center border-2 text-[13px] transition-colors ' +
+                      (signals.isLocked(p.id)
+                        ? 'border-brand-ink bg-brand-yellow text-brand-ink'
+                        : 'border-white/70 bg-brand-petrol/70 text-white/90 opacity-0 group-hover:opacity-100 focus:opacity-100')
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      signals.toggleLock(p.id);
+                    }}
+                  >
+                    {signals.isLocked(p.id) ? '🔒' : '🔓'}
+                  </button>
                   {p.d1 && (
                     <span className="display-caps absolute left-0 top-3 z-[1] bg-brand-yellow px-2.5 py-1 text-[11px] text-brand-ink">
                       {formatRange(p.d1, p.d2 ?? null, locale)}

@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import {
+  askVisitorInput,
   comparePlacesInput,
   findEventsInput,
   explainVocabularyInput,
@@ -27,6 +28,9 @@ const ALL: Array<[string, z.ZodType]> = [
   ['compare_places', comparePlacesInput],
   ['find_near', findNearInput],
   ['find_events', findEventsInput],
+  ['ask_visitor', askVisitorInput],
+  ['get_input_result', getInputResultInput],
+  ['get_visitor_signals', getVisitorSignalsInput],
   ['get_catalog_stats', getCatalogStatsInput],
   ['set_view', setViewInput],
   ['highlight_places', highlightPlacesInput],
@@ -137,6 +141,14 @@ describe('fuzzing', () => {
     expect(filterPlacesInput.safeParse({ query: 'street food' }).success).toBe(true);
     expect(filterPlacesInput.safeParse({ query: 'x' }).success).toBe(false); // min 2
     expect(findEventsInput.safeParse({ query: 'x'.repeat(81) }).success).toBe(false);
+  });
+
+  it('ask_visitor bounds question and options', () => {
+    expect(askVisitorInput.safeParse({ question: 'Mer ou village ?', options: ['Mer', 'Village'] }).success).toBe(true);
+    expect(askVisitorInput.safeParse({ question: 'Trop', options: ['A'] }).success).toBe(false); // 1 option
+    expect(askVisitorInput.safeParse({ question: 'Q?', options: ['A', 'B'] }).success).toBe(false); // question < 5
+    expect(getInputResultInput.safeParse({ input_id: 'q-abc-12' }).success).toBe(true);
+    expect(getInputResultInput.safeParse({ input_id: 'DROP TABLE' }).success).toBe(false);
   });
 
   it('find_near requires town or full coordinates', () => {

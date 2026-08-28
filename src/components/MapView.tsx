@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import type { Store, ViewState } from '@/lib/store';
 import { getPresenceBus } from '@/lib/presence';
+import { getSignalsLog, type PingKind } from '@/lib/signals';
 import 'leaflet/dist/leaflet.css';
 
 const MARKER_CAP = 400;
@@ -32,6 +33,12 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   // The Leaflet import is async: highlights that arrive before init must be
   // drawn once the map exists, so readiness is state, not just a ref.
   const [mapReady, setMapReady] = useState(false);
+  // Ping wheel (issue #608): opened by leaflet's contextmenu event, which
+  // covers desktop right-click AND mobile long-press with one code path.
+  const [wheel, setWheel] = useState<{ x: number; y: number; lat: number; lng: number } | null>(
+    null,
+  );
+  const pingLayerRef = useRef<LayerGroup | null>(null);
 
   // Create once, destroy on unmount.
   useEffect(() => {
@@ -46,6 +53,11 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       });
       L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 18 }).addTo(map);
       markersRef.current = L.layerGroup().addTo(map);
+      pingLayerRef.current = L.layerGroup().addTo(map);
+      map.on('contextmenu', (ev) => {
+        const e = ev as { latlng: { lat: number; lng: number }; containerPoint: { x: number; y: number } };
+        setWheel({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng });
+      });
       mapRef.current = map;
       setMapReady(true);
     })();
@@ -53,6 +65,8 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       cancelled = true;
       markersRef.current?.clearLayers();
       markersRef.current = null;
+      pingLayerRef.current?.clearLayers();
+      pingLayerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -65,6 +79,60 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     if (!map) return;
     map.setView([view.center.lat, view.center.lng], view.zoom, { animate: true });
   }, [view.center.lat, view.center.lng, view.zoom]);
+
+  const placePing = (kind: PingKind) => {
+    if (!wheel) return;
+    getSignalsLog().addPing(kind, wheel.lat, wheel.lng);
+    void (async () => {
+      const L = (await import('leaflet')).default;
+      const layer = pingLayerRef.current;
+      if (!layer) return;
+      const glyph = kind === 'plus-comme-ca' ? '★' : kind === 'eviter' ? '✕' : '?';
+      const tone = kind === 'plus-comme-ca' ? '#FFE500' : kind === 'eviter' ? '#002731' : '#EE6E62';
+      L.marker([wheel.lat, wheel.lng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: 'ink-label-wrap',
+          html: `<span class="ping-mark" style="--tone:${tone}">${glyph}</span>`,
+          iconAnchor: [11, 11],
+        }),
+      }).addTo(layer);
+      // Bounded: mirror SignalsLog's cap by trimming oldest layers.
+      const layers = layer.getLayers();
+      if (layers.length > 20 && layers[0]) layer.removeLayer(layers[0]);
+    })();
+    setWheel(null);
+  };
+
+  // Grounding ack (issue #608): when the agent reads the signals, it writes
+  // a small acknowledgment at the latest ping.
+  useEffect(() => {
+    const bus = getPresenceBus();
+    let ackTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = bus.subscribe(() => {
+      const e = bus.last();
+      if (e?.phase !== 'act' || e.tool !== 'get_visitor_signals' || !e.center) return;
+      const map = mapRef.current;
+      if (!map) return;
+      void (async () => {
+        const L = (await import('leaflet')).default;
+        const ack = L.marker([e.center!.lat, e.center!.lng], {
+          interactive: false,
+          icon: L.divIcon({
+            className: 'ink-label-wrap',
+            html: '<span class="ink-label" style="--chars:6">vu ✓</span>',
+            iconAnchor: [-14, 2],
+          }),
+        }).addTo(map);
+        ackTimer = setTimeout(() => ack.remove(), 2600);
+      })();
+    });
+    return () => {
+      unsubscribe();
+      if (ackTimer) clearTimeout(ackTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Tool theatre (issue #607): find_near sweeps its radius on the shared map.
   // The temporary circle removes itself; timeouts are cleared on unmount.
@@ -153,14 +221,52 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   }, [store, view.highlighted, view.lastActor, mapReady]);
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="map"
-      data-presence="map"
-      role="region"
-      aria-label="Carte"
-      className="h-[420px] w-full border border-brand-ink/10"
-    />
+    <div className="relative">
+      <div
+        ref={containerRef}
+        data-testid="map"
+        data-presence="map"
+        role="region"
+        aria-label="Carte"
+        className="h-[420px] w-full border border-brand-ink/10"
+      />
+      {wheel && (
+        <div
+          data-testid="ping-wheel"
+          className="absolute z-[800] flex -translate-x-1/2 -translate-y-1/2 gap-1"
+          style={{ left: wheel.x, top: wheel.y }}
+          role="menu"
+          aria-label="Pings"
+        >
+          {(
+            [
+              ['plus-comme-ca', '★', 'Plus comme ça ici'],
+              ['eviter', '✕', 'Éviter cette zone'],
+              ['question', '?', 'Curieux de cet endroit'],
+            ] as const
+          ).map(([kind, glyph, label]) => (
+            <button
+              key={kind}
+              type="button"
+              role="menuitem"
+              title={label}
+              className="display-caps h-9 w-9 border-2 border-brand-ink bg-brand-yellow text-[15px] text-brand-ink shadow-[2px_2px_0_#002731] hover:bg-brand-ink hover:text-brand-yellow"
+              onClick={() => placePing(kind)}
+            >
+              {glyph}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Annuler"
+            className="h-9 w-9 border-2 border-brand-ink/40 bg-white text-[13px] text-brand-ink/60"
+            onClick={() => setWheel(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

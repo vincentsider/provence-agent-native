@@ -21,10 +21,15 @@ import { getStore, type Store } from '@/lib/store';
 import { CLUSTERS, categoryOf, fold } from '@/lib/types';
 import { listVocabulary } from '@/lib/vocab';
 import { getPresenceBus, intentFor } from '@/lib/presence';
+import { getElicitationStore } from '@/lib/elicitation';
+import { getSignalsLog } from '@/lib/signals';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
+  askVisitorInput,
   comparePlacesInput,
   findEventsInput,
+  getInputResultInput,
+  getVisitorSignalsInput,
   explainVocabularyInput,
   filterPlacesInput,
   findNearInput,
@@ -41,7 +46,7 @@ type Handler<S extends z.ZodType> = (
   input: z.output<S>,
   store: Store,
   signal: AbortSignal,
-) => { data: unknown; total: number | null };
+) => { data: unknown; total: number | null } | Promise<{ data: unknown; total: number | null }>;
 
 function isAbort(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
@@ -115,7 +120,7 @@ function makeExecute<S extends z.ZodType>(
         /* theatre only */
       }
 
-      const { data, total } = handler(parsed.data, store, signal ?? neverAborted());
+      const { data, total } = await handler(parsed.data, store, signal ?? neverAborted());
       try {
         getPresenceBus().emit({ phase: 'done', tool: name });
       } catch {
@@ -221,14 +226,23 @@ function defs(): ToolDef[] {
         }
         const { total, places } = store.filter(input, 'agent');
         // input.query flows through FilterInput untouched.
+        // Locked items are the visitor's decisions (issue #608): they lead
+        // the list and carry the flag, and the description tells the agent
+        // never to argue with them.
+        const signals = getSignalsLog();
+        const shaped = places.map((p) => ({
+          ...store.toPublicShape(p),
+          ...(signals.isLocked(p.id) ? { locked: true } : {}),
+        }));
+        shaped.sort((a, b) => Number('locked' in b) - Number('locked' in a));
         return {
           total,
           data: {
             total,
-            returned: places.length,
+            returned: shaped.length,
             offset: input.offset,
-            truncated: total > input.offset + places.length,
-            results: places.map((p) => store.toPublicShape(p)),
+            truncated: total > input.offset + shaped.length,
+            results: shaped,
           },
         };
       },
@@ -493,6 +507,77 @@ function defs(): ToolDef[] {
       },
     }),
     tool({
+      name: 'ask_visitor',
+      title: 'Question au visiteur',
+      description:
+        'Ask the visitor ONE short question by placing tappable choice cards on the page ' +
+        'they are looking at — never ask preferences in chat when this tool is available. ' +
+        'Resolves with their tap. If they take longer than ~45s you receive ' +
+        '{status:"pending", input_id}: keep helping and collect the answer later with ' +
+        'get_input_result. Their choices are decisions, not suggestions.',
+      schema: askVisitorInput,
+      readOnly: false,
+      untrusted: false,
+      handler: async (input: z.output<typeof askVisitorInput>, _store, signal) => {
+        const { promise } = getElicitationStore().ask(input.question, input.options, signal);
+        const result = await promise;
+        return { total: result.status === 'answered' ? 1 : 0, data: result };
+      },
+    }),
+    tool({
+      name: 'get_input_result',
+      title: 'Réponse du visiteur',
+      description:
+        'Collect the answer to a pending ask_visitor ticket. Statuses: answered (their ' +
+        'choice), pending (still deciding — continue helping, retry later), dismissed ' +
+        '(they closed the question: respect it, do not re-ask).',
+      schema: getInputResultInput,
+      readOnly: true,
+      untrusted: false,
+      handler: (input: z.output<typeof getInputResultInput>) => {
+        const result = getElicitationStore().result(input.input_id);
+        return { total: result.status === 'answered' ? 1 : 0, data: result };
+      },
+    }),
+    tool({
+      name: 'get_visitor_signals',
+      title: 'Gestes du visiteur',
+      description:
+        'The visitor talks with their hands: pings dropped on the map ' +
+        '(plus-comme-ca = more like this here, eviter = avoid this area, question = ' +
+        'curious about this spot), locks on results (their firm choices — never argue), ' +
+        'card answers, and yields. Returns gestures since your last call plus current ' +
+        'locks and pings. Call it whenever you are about to search or propose.',
+      schema: getVisitorSignalsInput,
+      readOnly: true,
+      untrusted: false,
+      handler: () => {
+        const drained = getSignalsLog().drainForAgent();
+        // Grounding ack (issue #608): acknowledge the latest ping visibly.
+        const lastPing = drained.pings[drained.pings.length - 1];
+        if (lastPing) {
+          try {
+            getPresenceBus().emit({ phase: 'focus', target: { lat: lastPing.lat, lng: lastPing.lng } });
+            getPresenceBus().emit({
+              phase: 'act',
+              tool: 'get_visitor_signals',
+              center: { lat: lastPing.lat, lng: lastPing.lng },
+            });
+          } catch {
+            /* theatre only */
+          }
+        }
+        return {
+          total: drained.newSignals.length,
+          data: {
+            newSignals: drained.newSignals,
+            locks: drained.locks,
+            pings: drained.pings,
+          },
+        };
+      },
+    }),
+    tool({
       name: 'get_agent_demand',
       title: 'Agent demand this session',
       description:
@@ -518,7 +603,7 @@ function defs(): ToolDef[] {
 }
 
 /** Single source of truth for the registered tool count (badge, tests, E2E). */
-export const TOOL_COUNT = 10;
+export const TOOL_COUNT = 13;
 
 let registered = false;
 
