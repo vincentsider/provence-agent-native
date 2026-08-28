@@ -50,5 +50,9 @@
     "credit": "A GeoTravel.ai demonstration. Open source code; the content remains the property of Provence Tourisme and links back to myprovence.fr.",
     "notIndex": "Demonstration page, not indexed.",
     "machine": "Machine access: JSON API, HTML agenda, llms.txt, MCP."
+  },
+  "upcoming": {
+    "title": "Coming up in the agenda",
+    "all": "Full agenda"
   }
 }

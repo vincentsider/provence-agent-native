@@ -47,11 +47,20 @@ const nextConfig = {
         destination: 'https://www.myprovence.fr/les-guides/:path*',
         permanent: false,
       },
-      // URLs agents GUESS (field observation: claude.ai tried /fr/agenda).
-      { source: '/:locale(fr|en)/agenda', destination: '/agenda', permanent: false },
-      { source: '/events', destination: '/agenda', permanent: false },
-      { source: '/:locale(fr|en)/agenda/:path*', destination: 'https://www.myprovence.fr/agenda/:path*', permanent: false },
+      // (guessed-URL handling moved to rewrites: some agent fetchers treat
+      // a 307 as a failure — field observation, 28 Aug, claude.ai.)
+      // :path+ (ONE or more), never :path*: the star variant swallowed
+      // /fr/agenda itself and beat the rewrite that serves content there.
+      { source: '/:locale(fr|en)/agenda/:path+', destination: 'https://www.myprovence.fr/agenda/:path+', permanent: false },
       { source: '/agenda/:path+', destination: 'https://www.myprovence.fr/agenda/:path+', permanent: false },
+    ];
+  },
+  async rewrites() {
+    return [
+      // URLs agents GUESS must serve content directly: claude.ai's fetcher
+      // reported "Failed to fetch /fr/agenda" on a 307 redirect.
+      { source: '/:locale(fr|en)/agenda', destination: '/agenda' },
+      { source: '/events', destination: '/agenda' },
     ];
   },
   async headers() {

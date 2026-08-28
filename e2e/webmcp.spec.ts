@@ -90,10 +90,20 @@ test.describe('fetch-only surfaces', () => {
     expect(payload.result.content[0]!.text).toContain('Street Food Festival');
   });
 
-  test('guessed URLs land somewhere real', async ({ request }) => {
-    const res = await request.get('/fr/agenda', { maxRedirects: 0 });
-    expect([307, 308]).toContain(res.status());
-    expect(res.headers()['location']).toContain('/agenda');
+  test('guessed URLs serve content DIRECTLY (some agent fetchers fail on 307s)', async ({ request }) => {
+    for (const url of ['/fr/agenda', '/en/agenda', '/events']) {
+      const res = await request.get(url, { maxRedirects: 0 });
+      expect(res.status()).toBe(200);
+      expect(await res.text()).toContain('Agenda Provence');
+    }
+  });
+
+  test('the landing page HTML itself carries real upcoming events (zero JS)', async ({ request }) => {
+    const html = await (await request.get('/fr')).text();
+    // Visible server-rendered content with canonical links: the one channel
+    // every fetch-only assistant reliably receives.
+    expect(html).toContain('Prochainement');
+    expect(html).toContain('https://www.myprovence.fr/agenda/');
   });
 });
 

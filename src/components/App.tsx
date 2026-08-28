@@ -21,6 +21,7 @@ import { FacetPanel, type UiFilter } from './FacetPanel';
 import { PlaceList } from './PlaceList';
 import { MapView } from './MapView';
 import { DemandMirror } from './DemandMirror';
+import type { UpcomingEvent } from '@/lib/build-data';
 
 if (typeof document !== 'undefined') {
   registerAll();
@@ -28,19 +29,65 @@ if (typeof document !== 'undefined') {
 
 const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
 
-export function App() {
+export function App({ upcoming = [] }: { upcoming?: UpcomingEvent[] }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
+    // The pre-hydration shell IS what fetch-only assistants read: it must
+    // carry real content, not just chrome (field failures, 28 Aug).
     return (
       <>
         <Masthead cluster={null} onCluster={null} />
         <Hero />
+        <UpcomingStrip upcoming={upcoming} />
       </>
     );
   }
-  return <Loaded />;
+  return <Loaded upcoming={upcoming} />;
+}
+
+/**
+ * Server-rendered upcoming events, styled in the brand: a real content
+ * section humans get value from, and the channel through which agents
+ * without a browser receive actual data (their extractors keep visible
+ * text and links; they drop comments, head links and JSON-LD).
+ */
+function UpcomingStrip({ upcoming }: { upcoming: UpcomingEvent[] }) {
+  const t = useTranslations('upcoming');
+  const locale = useLocale();
+  if (upcoming.length === 0) return null;
+  const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+  const d = (s: string) => fmt.format(new Date(`${s}T12:00:00Z`));
+  return (
+    <section aria-label={t('title')} className="border-t border-brand-ink/10 bg-brand-paper">
+      <div className="mx-auto max-w-[1400px] px-5 py-8">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="display-caps text-xl text-brand-ink">{t('title')}</h2>
+          <a className="font-slab text-[14px] text-brand-coral underline hover:text-brand-red" href="/agenda">
+            {t('all')} →
+          </a>
+        </div>
+        <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+          {upcoming.map((e) => (
+            <li key={e.path} className="font-slab text-[15px] leading-relaxed">
+              <span className="display-caps mr-2 bg-brand-yellow px-1.5 py-0.5 text-[10px] text-brand-ink">
+                {d(e.d1)}
+                {e.d2 && e.d2 !== e.d1 ? ` – ${d(e.d2)}` : ''}
+              </span>
+              <a
+                className="hover:text-brand-red hover:underline"
+                href={`https://www.myprovence.fr${e.path}`}
+              >
+                {e.name}
+              </a>
+              <span className="text-brand-ink/50"> · {e.town}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
 }
 
 /** The yellow bar: wordmark left, the five guides as uppercase nav, FR/EN. */
@@ -214,7 +261,7 @@ function WebMcpBadge() {
   );
 }
 
-function Loaded() {
+function Loaded({ upcoming }: { upcoming: UpcomingEvent[] }) {
   const t = useTranslations('app');
   const tf = useTranslations('footer');
   const store = getStore();
@@ -270,6 +317,8 @@ function Loaded() {
           </div>
         </div>
       </main>
+
+      <UpcomingStrip upcoming={upcoming} />
 
       <footer className="mt-10 bg-brand-petrol py-8 text-white/80">
         <div className="mx-auto max-w-[1400px] px-5 font-slab text-[13px] leading-relaxed">
