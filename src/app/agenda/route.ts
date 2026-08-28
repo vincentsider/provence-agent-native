@@ -39,7 +39,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     cluster: 'agenda',
     from: today,
     to: horizon,
-    limit: 400,
+    // The FULL window, not a slice: results come back sorted by start date
+    // ascending, so any limit here would keep only the OLDEST starters and
+    // cut off the truly upcoming events before the partition below runs
+    // (the exact bug this comment replaces).
+    limit: 5000,
     offset: 0,
   });
 
