@@ -31,12 +31,15 @@ const MAX_TOWNS = 30;
 
 /** Pure and reference-tested: mirrors the validated SQL exactly. */
 export function aggregatePulse(rows: readonly PulseRow[], now: Date): PulseData {
-  const cutoff = new Date(now.getTime() - PULSE_WINDOW_DAYS * 86_400_000).toISOString();
+  const cutoffMs = now.getTime() - PULSE_WINDOW_DAYS * 86_400_000;
   const byTown = new Map<string, { count: number; zeroCount: number }>();
   let totalRequests = 0;
 
   for (const row of rows) {
-    if (row.occurred_hour < cutoff) continue;
+    // Parse, never string-compare: PostgREST emits "+00:00" offsets while
+    // toISOString() emits "Z", and the two orders differ lexicographically.
+    const at = Date.parse(row.occurred_hour);
+    if (Number.isNaN(at) || at < cutoffMs) continue;
     totalRequests += 1;
     const town = row.args_summary?.town;
     if (typeof town !== 'string' || town.length === 0) continue;

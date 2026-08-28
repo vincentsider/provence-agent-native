@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleMcpMessage, type McpExtras } from '@/lib/mcp-server';
 import { aggregatePulse, PULSE_WINDOW_DAYS, type PulseRow } from '@/lib/demand-pulse';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getServerCatalog } from '@/lib/server-catalog';
 import { allowRequest, clientIpOf } from '@/lib/rate-limit';
 
@@ -72,6 +72,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     : NextResponse.json(reply);
 }
 
+// One client per warm instance, not one per tools/call.
+let cachedClient: SupabaseClient | null = null;
+let cachedFor = '';
+function getSupabase(url: string, key: string): SupabaseClient {
+  const id = `${url}:${key.length}`;
+  if (!cachedClient || cachedFor !== id) {
+    cachedClient = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    cachedFor = id;
+  }
+  return cachedClient;
+}
+
 /** get_demand_pulse over MCP when the telemetry env is present. */
 function buildExtras(): McpExtras {
   const url = process.env.SUPABASE_URL;
@@ -80,15 +94,15 @@ function buildExtras(): McpExtras {
   if (!url || !key || !workspaceId) return {};
   return {
     demandPulse: async () => {
-      const supabase = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
       const cutoff = new Date(Date.now() - PULSE_WINDOW_DAYS * 86_400_000).toISOString();
-      const { data, error } = await supabase
+      // Same query as /api/demand-pulse, ORDER INCLUDED: past 5000 rows the
+      // two surfaces must agree on which rows they aggregate (newest first).
+      const { data, error } = await getSupabase(url, key)
         .from('webmcp_demand_events')
         .select('args_summary, zero_result, occurred_hour')
         .eq('workspace_id', workspaceId)
         .gte('occurred_hour', cutoff)
+        .order('occurred_hour', { ascending: false })
         .limit(5000);
       if (error) throw new Error(error.code);
       return aggregatePulse((data ?? []) as PulseRow[], new Date());

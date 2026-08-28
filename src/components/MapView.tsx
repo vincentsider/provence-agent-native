@@ -146,12 +146,18 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   // a resolvable centroid simply do not plot.
   useEffect(() => {
     const pulseStore = getPulseStore();
+    // Epoch guard: draw() awaits the leaflet import, so two rapid pulse
+    // updates could interleave clearLayers/addTo and paint duplicates. Only
+    // the newest draw is allowed to touch the layer after its await.
+    let epoch = 0;
     const draw = () => {
       const data = pulseStore.getSnapshot();
       const layer = pulseLayerRef.current;
       if (!data || !layer || !mapReady) return;
+      const mine = ++epoch;
       void (async () => {
         const L = (await import('leaflet')).default;
+        if (mine !== epoch) return;
         layer.clearLayers();
         // Town centroid: mean of the catalogue's own coordinates, memoized.
         const centroids = townCentroids(store);
@@ -174,7 +180,10 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     };
     const unsubscribe = pulseStore.subscribe(draw);
     draw();
-    return unsubscribe;
+    return () => {
+      epoch += 1; // strand any in-flight draw
+      unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, store]);
 

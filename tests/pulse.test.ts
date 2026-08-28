@@ -60,3 +60,22 @@ describe('aggregatePulse', () => {
     expect(aggregatePulse(rows, NOW).towns).toHaveLength(30);
   });
 });
+
+describe('aggregatePulse timestamp formats', () => {
+  it('accepts PostgREST "+00:00" offsets and toISOString "Z" equally', () => {
+    const rows: PulseRow[] = [
+      { args_summary: { town: 'Aix' }, zero_result: false, occurred_hour: '2026-08-28T20:00:00+00:00' },
+      { args_summary: { town: 'Aix' }, zero_result: false, occurred_hour: '2026-08-28 20:00:00+00' },
+      { args_summary: { town: 'Aix' }, zero_result: false, occurred_hour: '2026-08-28T20:00:00.000Z' },
+    ];
+    const out = aggregatePulse(rows, new Date('2026-08-29T00:00:00Z'));
+    expect(out.towns[0]).toMatchObject({ town: 'Aix', count: 3 });
+  });
+
+  it('drops unparseable timestamps instead of counting them', () => {
+    const rows: PulseRow[] = [
+      { args_summary: { town: 'Aix' }, zero_result: false, occurred_hour: 'not-a-date' },
+    ];
+    expect(aggregatePulse(rows, new Date('2026-08-29T00:00:00Z')).totalRequests).toBe(0);
+  });
+});

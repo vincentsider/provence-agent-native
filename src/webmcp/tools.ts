@@ -592,12 +592,20 @@ function defs(): ToolDef[] {
       schema: getDemandPulseInput,
       readOnly: true,
       untrusted: false,
-      handler: async () => {
-        const res = await fetch('/api/demand-pulse', { credentials: 'omit' });
+      handler: async (_input, _store, signal) => {
+        signal?.throwIfAborted();
+        const res = await fetch('/api/demand-pulse', { credentials: 'omit', signal });
+        signal?.throwIfAborted();
         if (!res.ok) {
           return { total: 0, data: { error: 'pulse_unavailable' } };
         }
         const pulse = (await res.json()) as PulseData;
+        signal?.throwIfAborted();
+        // Same-origin, but never trust a shape you did not check: an error
+        // body with a 200 must not reach the map layer.
+        if (!Array.isArray(pulse?.towns) || typeof pulse?.totalRequests !== 'number') {
+          return { total: 0, data: { error: 'pulse_unavailable' } };
+        }
         getPulseStore().set(pulse);
         try {
           getPresenceBus().emit({ phase: 'focus', target: 'map' });

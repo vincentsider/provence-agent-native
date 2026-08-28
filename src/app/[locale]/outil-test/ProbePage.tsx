@@ -24,6 +24,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 interface ProbeEntry {
+  readonly id: number;
   readonly at: number;
   readonly line: string;
 }
@@ -35,8 +36,9 @@ const listeners = new Set<() => void>();
 const tickets = new Map<string, number>();
 let probesRegistered = false;
 
+let entrySeq = 0;
 function push(line: string): void {
-  log = [...log.slice(-(MAX_LOG - 1)), { at: Date.now(), line }];
+  log = [...log.slice(-(MAX_LOG - 1)), { id: ++entrySeq, at: Date.now(), line }];
   for (const fn of listeners) fn();
 }
 const subscribe = (fn: () => void) => {
@@ -107,6 +109,11 @@ function registerProbes(): void {
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       execute: async () => {
         const id = `t-${++seq}`;
+        // Bounded: an agent looping on probe_ticket must not grow memory.
+        if (tickets.size >= 50) {
+          const oldest = tickets.keys().next().value;
+          if (oldest !== undefined) tickets.delete(oldest);
+        }
         tickets.set(id, Date.now());
         push(`probe_ticket → ${id} émis`);
         return text({
@@ -198,7 +205,7 @@ export function ProbePage() {
           <p>En attente du premier appel…</p>
         ) : (
           entries.map((e) => (
-            <p key={`${e.at}-${e.line}`}>
+            <p key={e.id}>
               {new Date(e.at).toLocaleTimeString('fr-FR')} — {e.line}
             </p>
           ))
