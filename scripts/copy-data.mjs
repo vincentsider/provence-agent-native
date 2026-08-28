@@ -30,8 +30,10 @@ import('node:fs').then(({ rmSync, readFileSync }) => {
   const manifest = JSON.parse(readFileSync(path.join(source, 'manifest.json'), 'utf-8'));
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });
-  for (const file of ['manifest.json', manifest.files.catalog, manifest.files.vocab]) {
+  const files = ['manifest.json', manifest.files.catalog, manifest.files.vocab];
+  if (manifest.files.events) files.push(manifest.files.events);
+  for (const file of files) {
     cpSync(path.join(source, file), path.join(target, file));
   }
-  console.log(`[copy-data] staged ${manifest.files.catalog} + ${manifest.files.vocab} -> public/data`);
+  console.log(`[copy-data] staged ${files.slice(1).join(' + ')} -> public/data`);
 });
