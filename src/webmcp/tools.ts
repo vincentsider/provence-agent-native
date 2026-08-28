@@ -20,6 +20,7 @@ import { UnknownSlugError, UnknownTownError } from '@/lib/engine';
 import { getStore, type Store } from '@/lib/store';
 import { CLUSTERS, categoryOf, fold } from '@/lib/types';
 import { listVocabulary } from '@/lib/vocab';
+import { getPresenceBus, intentFor } from '@/lib/presence';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   comparePlacesInput,
@@ -101,7 +102,25 @@ function makeExecute<S extends z.ZodType>(
         });
       }
 
+      // The body announces its intent BEFORE acting (issue #607). Presence is
+      // pure theatre: emission is a bounded push, entirely outside the
+      // measured engine path, and a presence failure must never cost a tool.
+      try {
+        getPresenceBus().emit({
+          phase: 'announce',
+          tool: name,
+          intent: intentFor(name, parsed.data as Record<string, unknown>),
+        });
+      } catch {
+        /* theatre only */
+      }
+
       const { data, total } = handler(parsed.data, store, signal ?? neverAborted());
+      try {
+        getPresenceBus().emit({ phase: 'done', tool: name });
+      } catch {
+        /* theatre only */
+      }
       getDemandLog().record(
         name,
         parsed.data as Record<string, unknown>,
@@ -194,6 +213,12 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof filterPlacesInput>, store) => {
+        try {
+          getPresenceBus().emit({ phase: 'focus', target: 'filters' });
+          getPresenceBus().emit({ phase: 'act', tool: 'filter_places', tags: input.tags });
+        } catch {
+          /* theatre only */
+        }
         const { total, places } = store.filter(input, 'agent');
         // input.query flows through FilterInput untouched.
         return {
@@ -320,6 +345,17 @@ function defs(): ToolDef[] {
             lat: townPlaces.reduce((s, p) => s + p.lat!, 0) / townPlaces.length,
             lng: townPlaces.reduce((s, p) => s + p.lng!, 0) / townPlaces.length,
           };
+        }
+        try {
+          getPresenceBus().emit({ phase: 'focus', target: center });
+          getPresenceBus().emit({
+            phase: 'act',
+            tool: 'find_near',
+            center,
+            radiusKm: input.radiusKm,
+          });
+        } catch {
+          /* theatre only */
         }
         const result = store.findNear(center, input.radiusKm, input.cluster, input.limit, 'agent');
         return {

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import type { Store, ViewState } from '@/lib/store';
+import { getPresenceBus } from '@/lib/presence';
 import 'leaflet/dist/leaflet.css';
 
 const MARKER_CAP = 400;
@@ -65,6 +66,44 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     map.setView([view.center.lat, view.center.lng], view.zoom, { animate: true });
   }, [view.center.lat, view.center.lng, view.zoom]);
 
+  // Tool theatre (issue #607): find_near sweeps its radius on the shared map.
+  // The temporary circle removes itself; timeouts are cleared on unmount.
+  useEffect(() => {
+    const bus = getPresenceBus();
+    let sweepTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = bus.subscribe(() => {
+      const e = bus.last();
+      if (e?.phase !== 'act' || e.tool !== 'find_near' || !e.center || !e.radiusKm) return;
+      const map = mapRef.current;
+      if (!map) return;
+      void (async () => {
+        const L = (await import('leaflet')).default;
+        const circle = L.circle([e.center!.lat, e.center!.lng], {
+          radius: 200,
+          color: '#002731',
+          weight: 2,
+          fillColor: '#FFE500',
+          fillOpacity: 0.12,
+          className: 'sweep-circle',
+        }).addTo(map);
+        const targetM = e.radiusKm! * 1000;
+        const start = performance.now();
+        const grow = () => {
+          const t = Math.min(1, (performance.now() - start) / 900);
+          circle.setRadius(200 + (targetM - 200) * t * t);
+          if (t < 1 && mapRef.current) requestAnimationFrame(grow);
+        };
+        requestAnimationFrame(grow);
+        sweepTimer = setTimeout(() => circle.remove(), 3200);
+      })();
+    });
+    return () => {
+      unsubscribe();
+      if (sweepTimer) clearTimeout(sweepTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Redraw highlighted markers.
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +119,19 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         if (drawn >= MARKER_CAP) break;
         const p = places[i];
         if (!p || p.lat === null || p.lng === null) continue;
+        // Signature craft detail (issue #607): the agent labels its first
+        // finds on the map, written letter by letter in brand ink.
+        if (agentDriven && drawn < 5) {
+          const label = L.marker([p.lat, p.lng], {
+            interactive: false,
+            icon: L.divIcon({
+              className: 'ink-label-wrap',
+              html: `<span class="ink-label" style="animation-delay:${drawn * 450}ms;--chars:${Math.min(p.n.length, 24)}">${escapeHtml(p.n.slice(0, 24))}</span>`,
+              iconAnchor: [-10, 24],
+            }),
+          }).addTo(group);
+          void label;
+        }
         L.circleMarker([p.lat, p.lng], {
           radius: 8,
           weight: agentDriven ? 3 : 2,
@@ -104,6 +156,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     <div
       ref={containerRef}
       data-testid="map"
+      data-presence="map"
       role="region"
       aria-label="Carte"
       className="h-[420px] w-full border border-brand-ink/10"

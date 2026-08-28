@@ -5,10 +5,11 @@
  * the uppercase display face, then slab-serif controls with square corners.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Store } from '@/lib/store';
 import { fold, type ClusterKey } from '@/lib/types';
+import { getPresenceBus } from '@/lib/presence';
 
 export interface UiFilter {
   readonly tags: readonly string[];
@@ -31,6 +32,26 @@ export function FacetPanel({
 }) {
   const t = useTranslations('filters');
   const [query, setQuery] = useState('');
+  // Tool theatre (issue #607): when the agent filters, its tags flash in the
+  // rail so the human sees the same control being worked. Timeout cleared on
+  // unmount and on every new flash.
+  const [flashed, setFlashed] = useState<ReadonlySet<string>>(new Set());
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const bus = getPresenceBus();
+    const unsubscribe = bus.subscribe(() => {
+      const e = bus.last();
+      if (e?.phase === 'act' && e.tool === 'filter_places' && e.tags && e.tags.length > 0) {
+        setFlashed(new Set(e.tags));
+        if (flashTimer.current) clearTimeout(flashTimer.current);
+        flashTimer.current = setTimeout(() => setFlashed(new Set()), 2000);
+      }
+    });
+    return () => {
+      unsubscribe();
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
+  }, []);
 
   // Facets scoped to the active cluster tab, exactly like each myprovence.fr
   // hub shows its OWN facet list with its own populations, count-descending.
@@ -78,7 +99,7 @@ export function FacetPanel({
   };
 
   return (
-    <aside aria-label={t('title')} className="space-y-4">
+    <aside aria-label={t('title')} data-presence="filters" className="space-y-4">
       <div className="flex items-center justify-between bg-brand-yellow px-3 py-2.5">
         <h2 className="display-caps text-[14px] leading-none text-brand-ink">{t('title')}</h2>
         <span data-testid="result-count" className="font-slab text-[13px] font-bold text-brand-ink">
@@ -113,7 +134,12 @@ export function FacetPanel({
       <ul className="max-h-[300px] space-y-0.5 overflow-y-auto font-slab text-[14px] lg:max-h-none lg:overflow-visible">
         {tags.map((tag) => (
           <li key={tag.slug}>
-            <label className="flex cursor-pointer items-center gap-2 px-1 py-1 hover:bg-brand-paper">
+            <label
+              className={
+                'flex cursor-pointer items-center gap-2 px-1 py-1 hover:bg-brand-paper ' +
+                (flashed.has(tag.slug) ? 'agent-flash' : '')
+              }
+            >
               <input
                 type="checkbox"
                 checked={filter.tags.includes(tag.slug)}

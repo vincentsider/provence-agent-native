@@ -24,3 +24,41 @@
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+
+/* --- Agent presence theatre (issue #607) --- */
+
+/* A tag row the agent just used flashes in brand yellow. */
+.agent-flash {
+  animation: agent-flash 2s ease-out;
+}
+@keyframes agent-flash {
+  0% { background: #ffe500; }
+  60% { background: #fff9c0; }
+  100% { background: transparent; }
+}
+
+/* The signature detail: labels written letter by letter in brand ink. */
+.ink-label-wrap { background: transparent; border: none; }
+.ink-label {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 0;
+  font-family: var(--font-display), 'Arial Black', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #002731;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 2px solid #ffe500;
+  padding: 1px 4px;
+  animation: ink-write 1.1s steps(24, end) forwards;
+}
+@keyframes ink-write {
+  to { max-width: calc(var(--chars, 24) * 1ch + 8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-flash, .ink-label { animation: none; }
+  .ink-label { max-width: none; }
+}

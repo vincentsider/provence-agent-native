@@ -21,6 +21,7 @@ import { FacetPanel, type UiFilter } from './FacetPanel';
 import { PlaceList } from './PlaceList';
 import { MapView } from './MapView';
 import { DemandMirror } from './DemandMirror';
+import { AgentPresence } from './AgentPresence';
 import type { UpcomingEvent } from '@/lib/build-data';
 
 if (typeof document !== 'undefined') {
@@ -333,6 +334,7 @@ function Loaded({
 
       <UpcomingStrip upcoming={upcoming} />
       <SiteFooter snapshotDate={snapshotDate} />
+      <AgentPresence />
     </>
   );
 }
