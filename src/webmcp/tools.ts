@@ -184,7 +184,8 @@ function defs(): ToolDef[] {
         'website paginates with JavaScript and marks every filter link rel="nofollow", so ' +
         'browsing cannot reach beyond the first 40 results of each cluster. Returns the ' +
         'canonical myprovence.fr URL for every result and highlights the results on the ' +
-        "map the visitor is watching. Tags must be slugs from explain_vocabulary.",
+        'map the visitor is watching. Tags must be slugs from explain_vocabulary; query ' +
+        'is free-text keyword search over names, towns, summaries and criteria labels.',
       schema: filterPlacesInput,
       readOnly: true,
       untrusted: true,

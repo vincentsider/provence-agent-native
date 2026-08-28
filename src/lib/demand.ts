@@ -86,6 +86,9 @@ export class DemandLog {
     for (const fn of this.#listeners) fn();
 
     if (this.#enabled && total !== null) {
+      // DELIBERATE: free-text `query` is NEVER aggregated to the server.
+      // It is the one argument a visitor's own words flow into, i.e. a
+      // potential PII channel; it lives in the on-page mirror only.
       const agg: PendingAggregate = {
         tool,
         tags: Array.isArray(args.tags) ? (args.tags as string[]).slice(0, 12) : undefined,

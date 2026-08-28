@@ -95,6 +95,21 @@ describe('performance budgets', () => {
     expect(ms).toBeLessThanOrEqual(40);
   });
 
+  it(`keyword query full scan p95 <= 25 ms on ${label}`, () => {
+    const idx = buildIndexes(catalog, vocab);
+    const rand = rng(555);
+    const words = ['piscine', 'marche', 'festival', 'visite', 'street food', 'concert jazz', 'parking', 'aix'];
+    const durations: number[] = [];
+    for (let i = 0; i < 200; i++) {
+      const q = words[Math.floor(rand() * words.length)]!;
+      const t0 = performance.now();
+      runFilter(catalog, idx, { query: q, limit: 40, offset: 0 });
+      durations.push(performance.now() - t0);
+    }
+    durations.sort((a, b) => a - b);
+    expect(durations[Math.floor(durations.length * 0.95)]!).toBeLessThanOrEqual(25);
+  });
+
   it(`filter_places p95 <= 15 ms, p99 <= 30 ms over 1000 queries on ${label}`, () => {
     const idx = buildIndexes(catalog, vocab);
     const rand = rng(4242);

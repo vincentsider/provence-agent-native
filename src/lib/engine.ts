@@ -35,9 +35,11 @@ export interface Indexes {
   readonly byCluster: readonly Uint16Array[];
   /** alias term id -> canonical term id (display normalisation). */
   readonly aliasToCanonical: ReadonlyMap<number, number>;
-  /** Per-record folded haystack (name + town + summary) for query search.
-   *  ~2 MB for 6.4k records: the price of agents finding events by NAME
-   *  (field failure 28 Aug: "Street Food Festival" was unfindable). */
+  /** Per-record folded haystack (name + town + summary + tag labels) for
+   *  keyword search. Measured ~5.6 MB heap on the real 6.4k-record catalogue:
+   *  the price of agents finding events by NAME or criterion (field failure
+   *  28 Aug: "Street Food Festival" was unfindable). Revisit with per-term
+   *  postings if the catalogue grows past ~20k records. */
   readonly searchBlobs: readonly string[];
 }
 
