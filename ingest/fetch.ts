@@ -97,6 +97,16 @@ export class HttpStatusError extends Error {
   }
 }
 
+/**
+ * Statuses that mean "this page does not exist": safe grounds for dropping a
+ * record. Deliberately NOT the whole 4xx family — a 429 (rate limit) or 403
+ * (WAF mood) during a crawl would otherwise silently delete valid records,
+ * which is a data-loss bug, not hygiene.
+ */
+export function isGoneStatus(status: number): boolean {
+  return status === 404 || status === 410;
+}
+
 export interface FetchStats {
   network: number;
   cached: number;

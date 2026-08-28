@@ -33,7 +33,7 @@ const eventSchema = z
     category: z.string().min(1).max(64).optional(),
     month: z
       .string()
-      .regex(/^\d{4}-\d{2}$/)
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
       .optional(),
     resultTotal: z.number().int().min(0).max(100000),
     zeroResult: z.boolean(),

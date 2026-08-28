@@ -172,6 +172,21 @@ describe('parseDetailPage on events', () => {
   });
 });
 
+describe('isGoneStatus', () => {
+  const { isGoneStatus } = require('../ingest/fetch') as {
+    isGoneStatus: (s: number) => boolean;
+  };
+  it('drops only on definitely-gone statuses', () => {
+    expect(isGoneStatus(404)).toBe(true);
+    expect(isGoneStatus(410)).toBe(true);
+  });
+  it('never drops on rate limits, auth walls or server errors', () => {
+    for (const s of [400, 401, 403, 408, 429, 500, 502, 503]) {
+      expect(isGoneStatus(s)).toBe(false);
+    }
+  });
+});
+
 describe('pathToTown', () => {
   it('extracts the town segment', () => {
     expect(

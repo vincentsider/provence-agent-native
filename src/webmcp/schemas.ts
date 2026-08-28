@@ -140,13 +140,13 @@ export const highlightPlacesInput = z
 
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD expected');
+  .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'YYYY-MM-DD expected');
 
 export const findEventsInput = z
   .object({
     month: z
       .string()
-      .regex(/^\d{4}-\d{2}$/, 'YYYY-MM expected')
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'YYYY-MM expected')
       .optional()
       .describe('Whole-month shorthand, e.g. "2026-10" for October 2026. Overrides from/to.'),
     from: isoDate.optional().describe('Window start (inclusive).'),

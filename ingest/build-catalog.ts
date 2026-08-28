@@ -20,7 +20,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { brotliCompressSync } from 'node:zlib';
 
-import { HttpStatusError, fetchCached, fetchStats } from './fetch';
+import { HttpStatusError, fetchCached, fetchStats, isGoneStatus } from './fetch';
 import { enumerateDetailPages } from './sitemap';
 import { flagInjectionPatterns, type Flag } from './sanitize';
 import {
@@ -206,7 +206,7 @@ async function main(): Promise<void> {
         // slug-named placeholder card at the TOP of the list linking to an
         // error page — the exact field failure of 28 Aug. Drop it. Anything
         // else (timeout, 5xx) is transient: keep and warn.
-        if (err instanceof HttpStatusError && err.status >= 400 && err.status < 500) {
+        if (err instanceof HttpStatusError && isGoneStatus(err.status)) {
           byPath.delete(wp.path);
           deadDropped++;
           continue;
@@ -219,7 +219,7 @@ async function main(): Promise<void> {
       }
     }
     console.log(
-      `[enrich] dropped ${listPagesDropped} listing pages and ${deadDropped} dead pages (4xx)`,
+      `[enrich] dropped ${listPagesDropped} listing pages and ${deadDropped} dead pages (404/410)`,
     );
   }
 

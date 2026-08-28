@@ -94,9 +94,16 @@ export function PlaceList({ store, view }: { store: Store; view: ViewState }) {
   );
 }
 
-/** "2026-10-18" (+ optional end) in the visitor's locale, e.g. "18 oct. – 2 nov.". */
+/** "2026-10-18" (+ optional end) in the visitor's locale, e.g. "18 oct. – 2 nov.".
+ *  The formatter is memoized per locale: Intl.DateTimeFormat construction is
+ *  expensive and this runs for every event card on every render. */
+const formatters = new Map<string, Intl.DateTimeFormat>();
 function formatRange(d1: string, d2: string | null, locale: string): string {
-  const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+  let fmt = formatters.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+    formatters.set(locale, fmt);
+  }
   const parse = (s: string) => new Date(`${s}T12:00:00Z`);
   const start = fmt.format(parse(d1));
   if (!d2 || d2 === d1) return start;

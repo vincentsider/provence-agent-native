@@ -126,6 +126,11 @@ describe('fuzzing', () => {
     expect(findEventsInput.safeParse({ from: '2026-10-01', to: '2026-10-31' }).success).toBe(true);
     expect(findEventsInput.safeParse({ from: '01/10/2026' }).success).toBe(false);
     expect(findEventsInput.safeParse({}).success).toBe(true); // open browse is valid
+    // Calendar bounds are part of the contract, not just the shape.
+    expect(findEventsInput.safeParse({ month: '2026-13' }).success).toBe(false);
+    expect(findEventsInput.safeParse({ month: '2026-00' }).success).toBe(false);
+    expect(findEventsInput.safeParse({ from: '2026-10-32' }).success).toBe(false);
+    expect(findEventsInput.safeParse({ from: '2026-00-10' }).success).toBe(false);
   });
 
   it('find_near requires town or full coordinates', () => {

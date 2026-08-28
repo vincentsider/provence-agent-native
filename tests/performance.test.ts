@@ -31,13 +31,24 @@ function loadRealOrSynthetic(): { catalog: Catalog; vocab: Vocab; label: string 
     if (existsSync(path.join(outDir, 'manifest.json'))) {
       const manifest = JSON.parse(
         readFileSync(path.join(outDir, 'manifest.json'), 'utf-8'),
-      ) as { files: { catalog: string; vocab: string } };
+      ) as { files: { catalog: string; vocab: string; events?: string } };
       const catalog = JSON.parse(
         readFileSync(path.join(outDir, manifest.files.catalog), 'utf-8'),
       ) as Catalog;
       const vocab = JSON.parse(
         readFileSync(path.join(outDir, manifest.files.vocab), 'utf-8'),
       ) as Vocab;
+      // Measure what the browser actually indexes: guides + events merged.
+      if (manifest.files.events) {
+        const events = JSON.parse(
+          readFileSync(path.join(outDir, manifest.files.events), 'utf-8'),
+        ) as Catalog;
+        return {
+          catalog: { version: 1, places: [...catalog.places, ...events.places] },
+          vocab,
+          label: `real merged (${catalog.places.length + events.places.length} records)`,
+        };
+      }
       return { catalog, vocab, label: `real (${catalog.places.length} records)` };
     }
   } catch {
