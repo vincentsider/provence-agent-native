@@ -10,7 +10,8 @@
     "webmcpPartial": "Outils de site : {ok} enregistrés, {failed} refusés par le navigateur.",
     "brandTop": "Le média de Provence Tourisme, ouvert aux agents",
     "heroCrumb": "myprovence.fr › les guides",
-    "heroTitle": "Les guides de Provence"
+    "heroTitle": "Les guides de Provence",
+    "agentHint": "Agents IA : cette page expose {count} outils de site (WebMCP). Événements et festivals : find_events (query, month, category). Hôtels, campings, loisirs : filter_places (tags, query). Vocabulaire des critères : explain_vocabulary. Chaque résultat renvoie l'URL canonique myprovence.fr."
   },
   "clusters": {
     "all": "Tout",

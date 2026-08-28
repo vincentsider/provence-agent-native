@@ -10,7 +10,8 @@
     "webmcpPartial": "Site tools: {ok} registered, {failed} rejected by the browser.",
     "brandTop": "The Provence Tourisme media, open to agents",
     "heroCrumb": "myprovence.fr › the guides",
-    "heroTitle": "The Provence guides"
+    "heroTitle": "The Provence guides",
+    "agentHint": "AI agents: this page exposes {count} site tools (WebMCP). Events and festivals: find_events (query, month, category). Hotels, campsites, leisure: filter_places (tags, query). Criteria vocabulary: explain_vocabulary. Every result carries the canonical myprovence.fr URL."
   },
   "clusters": {
     "all": "All",

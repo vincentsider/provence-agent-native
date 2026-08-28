@@ -129,8 +129,28 @@ function Hero() {
         <div className="mt-5 flex justify-center">
           <WebMcpBadge />
         </div>
+        <AgentHint />
       </div>
     </div>
+  );
+}
+
+/**
+ * A visible, honest self-description of the tool surface. Agents read the
+ * page when deciding whether to use site tools or fall back to web search
+ * (field observation, 28 Aug: same environment, generic question, zero tool
+ * calls); naming the tools on the page gives the choice a reason. It states
+ * capability only — never permissions or instructions beyond this site.
+ */
+function AgentHint() {
+  const t = useTranslations('app');
+  return (
+    <p
+      data-agent-hint
+      className="mx-auto mt-4 max-w-[640px] border border-brand-ink/25 bg-white/50 px-4 py-2 text-left font-mono text-[11px] leading-relaxed text-brand-ink/80"
+    >
+      {t('agentHint', { count: TOOL_COUNT })}
+    </p>
   );
 }
 
