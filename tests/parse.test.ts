@@ -111,6 +111,14 @@ describe('parseDetailPage', () => {
     expect(d.redirected).toBe(false);
   });
 
+  it('flags agenda hub listings (city/theme aggregates) as list pages', () => {
+    const html =
+      '<link rel="canonical" href="https://www.myprovence.fr/agenda/exposition/arles" />' +
+      '<article data-history-node-id="2184" about="/agenda/exposition/arles" class="node--type--hub-agenda node--view-mode--full"></article>';
+    const r = parseDetailPage(html, '/agenda/exposition/arles');
+    expect(r.isListPage).toBe(true);
+  });
+
   it('flags hub/listing pages misfiled as places', () => {
     const listHtml = '<article data-history-node-id="413" about="/les-guides/loisirs/tout-le-guide/arles" class="node--type--poi-hub-map node--view-mode--full"></article>';
     const r = parseDetailPage(listHtml, '/les-guides/loisirs/tout-le-guide/arles');

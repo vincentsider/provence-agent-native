@@ -205,7 +205,10 @@ export function parseDetailPage(html: string, pagePath?: string): DetailPage {
       `<article[^>]+about="${escaped}"[^>]*class="([^"]*)"`,
     ).exec(html);
     if (anchor) {
-      isListPage = anchor[1]!.includes('poi-hub-map');
+      // Two hub families exist: guide hubs (node--type--poi-hub-map) and
+      // agenda hubs (node--type--hub-agenda, e.g. /agenda/exposition/arles or
+      // the region-theme pages). Both are listings, never places or events.
+      isListPage = /poi-hub-map|hub-agenda/.test(anchor[1]!);
       const region = html.slice(anchor.index, anchor.index + 60_000);
       const imgM = /<img[^>]+src="(\/sites\/default\/files\/styles\/[^"]+)"/.exec(region);
       if (imgM) img = decodeAmp(imgM[1]!);

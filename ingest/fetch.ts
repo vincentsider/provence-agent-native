@@ -85,6 +85,18 @@ async function politeDelay(): Promise<void> {
   lastNetworkFetch = Date.now();
 }
 
+/** A non-2xx answer: the page is telling us something (404/410 = it is
+ *  gone), which callers must distinguish from a transient network failure. */
+export class HttpStatusError extends Error {
+  constructor(
+    readonly status: number,
+    url: string,
+  ) {
+    super(`GET ${url} -> ${status}`);
+    this.name = 'HttpStatusError';
+  }
+}
+
 export interface FetchStats {
   network: number;
   cached: number;
@@ -130,7 +142,7 @@ export async function fetchCached(rawUrl: string): Promise<string> {
       current = next;
       continue;
     }
-    if (!res.ok) throw new Error(`GET ${current} -> ${res.status}`);
+    if (!res.ok) throw new HttpStatusError(res.status, String(current));
 
     const body = await res.text();
     if (Buffer.byteLength(body, 'utf-8') > MAX_BODY_BYTES) {

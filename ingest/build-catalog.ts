@@ -20,7 +20,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { brotliCompressSync } from 'node:zlib';
 
-import { fetchCached, fetchStats } from './fetch';
+import { HttpStatusError, fetchCached, fetchStats } from './fetch';
 import { enumerateDetailPages } from './sitemap';
 import { flagInjectionPatterns, type Flag } from './sanitize';
 import {
@@ -162,6 +162,7 @@ async function main(): Promise<void> {
 
   // ---- Stage 2 (optional): detail enrichment ------------------------------
   let listPagesDropped = 0;
+  let deadDropped = 0;
   if (args.enrich) {
     const targets = [...byPath.values()].slice(0, args.limit ?? Infinity);
     let done = 0;
@@ -200,6 +201,16 @@ async function main(): Promise<void> {
           }
         }
       } catch (err) {
+        // A 4xx is the site saying the page is GONE (dead events redirect to
+        // their category URL, which 404s): shipping such a record puts a
+        // slug-named placeholder card at the TOP of the list linking to an
+        // error page — the exact field failure of 28 Aug. Drop it. Anything
+        // else (timeout, 5xx) is transient: keep and warn.
+        if (err instanceof HttpStatusError && err.status >= 400 && err.status < 500) {
+          byPath.delete(wp.path);
+          deadDropped++;
+          continue;
+        }
         console.warn(`[enrich] ${wp.path}: ${err instanceof Error ? err.message : err}`);
       }
       done++;
@@ -207,7 +218,9 @@ async function main(): Promise<void> {
         console.log(`[enrich] ${done}/${targets.length} (${fetchStats.network} network, ${fetchStats.cached} cached)`);
       }
     }
-    console.log(`[enrich] dropped ${listPagesDropped} listing pages misfiled as places`);
+    console.log(
+      `[enrich] dropped ${listPagesDropped} listing pages and ${deadDropped} dead pages (4xx)`,
+    );
   }
 
   // ---- Injection flags: fail unless reviewed ------------------------------
@@ -318,6 +331,18 @@ async function main(): Promise<void> {
   // give them a deterministic negative id from the path so the id stays
   // stable across builds until enrichment resolves the real one.
   const AGENDA_IDX = CLUSTERS.findIndex((c) => c.key === 'agenda');
+  if (args.enrich) {
+    let unanchored = 0;
+    for (const [key, wp] of byPath) {
+      if (wp.cluster === AGENDA_IDX && wp.nodeId < 0) {
+        byPath.delete(key);
+        unanchored++;
+      }
+    }
+    if (unanchored > 0) {
+      console.log(`[emit] dropped ${unanchored} agenda records without an anchored page`);
+    }
+  }
   const seenIds = new Set<number>();
   const allRecords: Place[] = [...byPath.values()]
     .map((wp) => {
