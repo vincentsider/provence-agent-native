@@ -39,11 +39,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     cluster: 'agenda',
     from: today,
     to: horizon,
-    limit: 40,
+    limit: 400,
     offset: 0,
   });
 
-  const items = indices
+  // "À venir" must READ as upcoming: events STARTING in the window lead,
+  // chronologically; long-running always-on events (started 2022...) follow.
+  // Without this, 670 overlapping events put multi-year guided tours in all
+  // 40 slots and the actual next festival never appears.
+  const starting = indices.filter((i) => (sc.catalog.places[i]!.d1 ?? '') >= today);
+  const ongoing = indices.filter((i) => (sc.catalog.places[i]!.d1 ?? '') < today);
+  const shown = [...starting, ...ongoing].slice(0, 40);
+
+  const items = shown
     .map((i) => {
       const p = sc.catalog.places[i]!;
       const town = p.t >= 0 ? (sc.vocab.towns[p.t] ?? '') : '';
