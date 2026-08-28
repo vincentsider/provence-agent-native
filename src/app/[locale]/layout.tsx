@@ -56,6 +56,21 @@ export default async function LocaleLayout({
         {/* Start the catalogue download before the JS bundle finishes parsing
             (spec 7.4). The manifest is tiny and no-cache. */}
         <link rel="preload" href="/data/manifest.json" as="fetch" crossOrigin="anonymous" />
+        {/* Machine discovery for fetch-only agents: the plain-HTTP ladder. */}
+        <link rel="alternate" type="text/html" href="/agenda" title="Agenda (server-rendered)" />
+        <link
+          rel="alternate"
+          type="application/json"
+          href="/api/events"
+          title="Events API (query, month, category, town)"
+        />
+        <link
+          rel="alternate"
+          type="application/json"
+          href="/api/places"
+          title="Places API (cluster, tags, query)"
+        />
+        <link rel="help" href="/llms.txt" title="Agent surface description" />
       </head>
       <body className="min-h-screen bg-white font-slab text-brand-ink antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>

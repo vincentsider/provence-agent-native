@@ -144,12 +144,33 @@ function Hero() {
  */
 function AgentHint() {
   const t = useTranslations('app');
+  // Real <a href> links, because the audience that needs them reads the raw
+  // HTML: a fetch-only assistant landing here must see WHERE the plain-HTTP
+  // ladder lives (field failure, 28 Aug: claude.ai read a hint that only
+  // named the WebMCP tools, concluded no fallback existed, and gave up while
+  // /agenda and /api/events were one hop away).
+  const links: Array<[string, string]> = [
+    ['/api/events?query=…', '/api/events?query=street+food'],
+    ['/api/events?month=…', '/api/events?month=2026-10'],
+    ['/api/places?…', '/api/places?cluster=hotels&tag=parking'],
+    ['/agenda (HTML)', '/agenda'],
+    ['/llms.txt', '/llms.txt'],
+    ['MCP: POST /api/mcp', '/llms.txt'],
+  ];
   return (
     <p
       data-agent-hint
-      className="mx-auto mt-4 max-w-[640px] border border-brand-ink/25 bg-white/50 px-4 py-2 text-left font-mono text-[11px] leading-relaxed text-brand-ink/80"
+      className="mx-auto mt-4 max-w-[680px] border border-brand-ink/25 bg-white/50 px-4 py-2 text-left font-mono text-[11px] leading-relaxed text-brand-ink/80"
     >
-      {t('agentHint', { count: TOOL_COUNT })}
+      {t('agentHint', { count: TOOL_COUNT })}{' '}
+      {links.map(([label, href], i) => (
+        <span key={label}>
+          {i > 0 && ' · '}
+          <a className="underline hover:text-brand-red" href={href}>
+            {label}
+          </a>
+        </span>
+      ))}
     </p>
   );
 }
