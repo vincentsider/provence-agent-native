@@ -143,3 +143,65 @@ describe('handleMcpMessage', () => {
     expect(b.error.code).toBe(-32601);
   });
 });
+
+describe('pickDataOrigin (Host-spoof defence)', () => {
+  const { pickDataOrigin } = require('@/lib/server-catalog') as {
+    pickDataOrigin: (o: string, env?: Record<string, string | undefined>) => string;
+  };
+  const env = { VERCEL_PROJECT_PRODUCTION_URL: 'provence-agent-native.vercel.app' };
+
+  it('honours a request origin that matches the deployment', () => {
+    expect(pickDataOrigin('https://provence-agent-native.vercel.app', env)).toBe(
+      'https://provence-agent-native.vercel.app',
+    );
+  });
+
+  it('NEVER follows a spoofed Host: falls back to the pinned origin', () => {
+    expect(pickDataOrigin('https://evil.example', env)).toBe(
+      'https://provence-agent-native.vercel.app',
+    );
+    expect(pickDataOrigin('http://127.0.0.1:9999', env)).toBe(
+      'https://provence-agent-native.vercel.app',
+    );
+  });
+
+  it('local dev origins stay usable without any env', () => {
+    expect(pickDataOrigin('http://127.0.0.1:3040', {})).toBe('http://127.0.0.1:3040');
+  });
+
+  it('an explicit NEXT_PUBLIC_SITE_ORIGIN wins the fallback order', () => {
+    expect(
+      pickDataOrigin('https://evil.example', {
+        NEXT_PUBLIC_SITE_ORIGIN: 'https://mmcp.myprovence.fr',
+        VERCEL_URL: 'x.vercel.app',
+      }),
+    ).toBe('https://mmcp.myprovence.fr');
+  });
+});
+
+describe('MCP protocol version negotiation', () => {
+  const catalog = ((): import('@/lib/server-catalog').ServerCatalog => {
+    const places = [] as never[];
+    const vocab = { version: 1 as const, tags: {}, towns: [] };
+    const cat = { version: 1 as const, places };
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { buildIndexes } = require('@/lib/engine');
+    return { catalog: cat, vocab, indexes: buildIndexes(cat, vocab), generatedAt: 'x' };
+  })();
+
+  it('echoes a supported requested version', () => {
+    const r = handleMcpMessage(
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
+      catalog,
+    ) as { result: { protocolVersion: string } };
+    expect(r.result.protocolVersion).toBe('2025-06-18');
+  });
+
+  it('falls back to our default on an unknown version', () => {
+    const r = handleMcpMessage(
+      { jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '1999-01-01' } },
+      catalog,
+    ) as { result: { protocolVersion: string } };
+    expect(r.result.protocolVersion).toBe('2025-03-26');
+  });
+});

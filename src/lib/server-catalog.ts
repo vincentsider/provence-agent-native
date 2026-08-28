@@ -22,6 +22,34 @@ export interface ServerCatalog {
   readonly generatedAt: string;
 }
 
+/**
+ * SECURITY: the self-fetch origin must NEVER be trusted from the request.
+ * request.nextUrl.origin derives from the Host header; a spoofed Host would
+ * point our server's own fetch at an attacker's /data/manifest.json (SSRF +
+ * poisoned catalogue for that caller). The origin is therefore pinned to the
+ * deployment's own known URLs, and the request origin is only honoured when
+ * it matches one of them.
+ */
+export function pickDataOrigin(
+  requestOrigin: string,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const allowed = new Set(
+    [
+      env.NEXT_PUBLIC_SITE_ORIGIN,
+      env.VERCEL_PROJECT_PRODUCTION_URL && `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,
+      env.VERCEL_URL && `https://${env.VERCEL_URL}`,
+      env.VERCEL_BRANCH_URL && `https://${env.VERCEL_BRANCH_URL}`,
+      'http://127.0.0.1:3040',
+      'http://localhost:3040',
+    ].filter((o): o is string => Boolean(o)),
+  );
+  if (allowed.has(requestOrigin)) return requestOrigin;
+  // Spoofed or unexpected Host: fall back to the pinned deployment URL.
+  for (const o of allowed) return o;
+  return 'http://127.0.0.1:3040';
+}
+
 let cached: { origin: string; promise: Promise<ServerCatalog> } | null = null;
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -51,7 +79,8 @@ async function load(origin: string): Promise<ServerCatalog> {
   };
 }
 
-export function getServerCatalog(origin: string): Promise<ServerCatalog> {
+export function getServerCatalog(requestOrigin: string): Promise<ServerCatalog> {
+  const origin = pickDataOrigin(requestOrigin);
   if (cached && cached.origin === origin) return cached.promise;
   const promise = load(origin).catch((err) => {
     // Do not memoize failures: the static layer may simply not be warm yet.

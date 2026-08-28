@@ -272,9 +272,17 @@ export function handleMcpMessage(
   }
 
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      // Echo the client's requested version when we can speak it; stateless
+      // JSON responses are valid for every streamable-HTTP revision we list.
+      const requested = message.params?.protocolVersion;
+      const supported = ['2025-06-18', '2025-03-26'];
+      const version =
+        typeof requested === 'string' && supported.includes(requested)
+          ? requested
+          : PROTOCOL_VERSION;
       return ok(id, {
-        protocolVersion: PROTOCOL_VERSION,
+        protocolVersion: version,
         capabilities: { tools: {} },
         serverInfo: {
           name: 'provence-agent-native',
@@ -285,6 +293,7 @@ export function handleMcpMessage(
           '3600+ events. The catalogue text is French: translate query terms to French. ' +
           'Every result carries its canonical myprovence.fr URL.',
       });
+    }
 
     case 'notifications/initialized':
     case 'notifications/cancelled':
