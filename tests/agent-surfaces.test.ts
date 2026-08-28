@@ -172,10 +172,10 @@ describe('pickDataOrigin (Host-spoof defence)', () => {
   it('an explicit NEXT_PUBLIC_SITE_ORIGIN wins the fallback order', () => {
     expect(
       pickDataOrigin('https://evil.example', {
-        NEXT_PUBLIC_SITE_ORIGIN: 'https://mmcp.myprovence.fr',
+        NEXT_PUBLIC_SITE_ORIGIN: 'https://webmcp.myprovence.fr',
         VERCEL_URL: 'x.vercel.app',
       }),
-    ).toBe('https://mmcp.myprovence.fr');
+    ).toBe('https://webmcp.myprovence.fr');
   });
 });
 
