@@ -10,8 +10,7 @@
     "webmcpPartial": "Site tools: {ok} registered, {failed} rejected by the browser.",
     "brandTop": "The Provence Tourisme media, open to agents",
     "heroCrumb": "myprovence.fr › the guides",
-    "heroTitle": "The Provence guides",
-    "agentHint": "AI agents: {count} WebMCP tools on this page (find_events, filter_places, explain_vocabulary). No browser? The same data over plain HTTP:"
+    "heroTitle": "The Provence guides"
   },
   "clusters": {
     "all": "All",
@@ -49,6 +48,7 @@
   },
   "footer": {
     "credit": "A GeoTravel.ai demonstration. Open source code; the content remains the property of Provence Tourisme and links back to myprovence.fr.",
-    "notIndex": "Demonstration page, not indexed."
+    "notIndex": "Demonstration page, not indexed.",
+    "machine": "Machine access: JSON API, HTML agenda, llms.txt, MCP."
   }
 }

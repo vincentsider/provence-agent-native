@@ -129,49 +129,53 @@ function Hero() {
         <div className="mt-5 flex justify-center">
           <WebMcpBadge />
         </div>
-        <AgentHint />
+        <AgentGuide />
       </div>
     </div>
   );
 }
 
 /**
- * A visible, honest self-description of the tool surface. Agents read the
- * page when deciding whether to use site tools or fall back to web search
- * (field observation, 28 Aug: same environment, generic question, zero tool
- * calls); naming the tools on the page gives the choice a reason. It states
- * capability only — never permissions or instructions beyond this site.
+ * The agent guide, invisible to humans but fully present in the served HTML,
+ * which is exactly what fetch-only assistants read (field failures, 28 Aug:
+ * claude.ai twice concluded from the visible copy alone that no plain-HTTP
+ * path existed). Channels used are standard metadata — an HTML comment and
+ * JSON-LD — NOT CSS-hidden text: nothing here is content, ranking-relevant,
+ * or invisible-to-machines, and the page is noindex throughout.
  */
-function AgentHint() {
-  const t = useTranslations('app');
-  // Real <a href> links, because the audience that needs them reads the raw
-  // HTML: a fetch-only assistant landing here must see WHERE the plain-HTTP
-  // ladder lives (field failure, 28 Aug: claude.ai read a hint that only
-  // named the WebMCP tools, concluded no fallback existed, and gave up while
-  // /agenda and /api/events were one hop away).
-  const links: Array<[string, string]> = [
-    ['/api/events?query=…', '/api/events?query=street+food'],
-    ['/api/events?month=…', '/api/events?month=2026-10'],
-    ['/api/places?…', '/api/places?cluster=hotels&tag=parking'],
-    ['/agenda (HTML)', '/agenda'],
-    ['/llms.txt', '/llms.txt'],
-    ['MCP: POST /api/mcp', '/llms.txt'],
-  ];
+function AgentGuide() {
+  const comment =
+    '<!-- AI agents: 10 WebMCP tools on this page (find_events, filter_places, ' +
+    'explain_vocabulary, get_place, compare_places, find_near, get_catalog_stats, ' +
+    'set_view, highlight_places, get_agent_demand). ' +
+    'No browser? Same data over plain HTTP: ' +
+    'GET /api/events?query=street+food | GET /api/events?month=2026-10&category=festival&town=Marseille | ' +
+    'GET /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes | ' +
+    'GET /agenda (server-rendered HTML) | GET /llms.txt (full surface description) | ' +
+    'POST /api/mcp (MCP streamable-http: initialize, tools/list, tools/call). ' +
+    'Catalogue text is FRENCH: translate query terms to French. ' +
+    'Every result carries its canonical myprovence.fr URL. -->';
+  const jsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Les guides de Provence, lisibles par les agents',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: '/api/events?query={search_term_string}',
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  });
   return (
-    <p
-      data-agent-hint
-      className="mx-auto mt-4 max-w-[680px] border border-brand-ink/25 bg-white/50 px-4 py-2 text-left font-mono text-[11px] leading-relaxed text-brand-ink/80"
-    >
-      {t('agentHint', { count: TOOL_COUNT })}{' '}
-      {links.map(([label, href], i) => (
-        <span key={label}>
-          {i > 0 && ' · '}
-          <a className="underline hover:text-brand-red" href={href}>
-            {label}
-          </a>
-        </span>
-      ))}
-    </p>
+    <>
+      <span dangerouslySetInnerHTML={{ __html: comment }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
+    </>
   );
 }
 
@@ -273,6 +277,14 @@ function Loaded() {
           <p>{tf('credit')}</p>
           <p className="mt-1 text-white/50">
             {t('sourceNote', { date: '2026-08-27' })} · {tf('notIndex')}
+          </p>
+          <p className="mt-1 text-white/50">
+            {tf('machine')}{' '}
+            <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events</a>
+            {' · '}
+            <a className="underline hover:text-brand-yellow" href="/agenda">/agenda</a>
+            {' · '}
+            <a className="underline hover:text-brand-yellow" href="/llms.txt">/llms.txt</a>
           </p>
         </div>
       </footer>
