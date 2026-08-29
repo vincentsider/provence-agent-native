@@ -153,6 +153,8 @@ function rawIntent(tool: string, args: Record<string, unknown>): string {
         : 'je vous montre un lieu';
     case 'write_postcard':
       return "j'écris votre carte postale";
+    case 'compose_carnet':
+      return 'je compose votre carnet de voyage';
     case 'get_visitor_signals':
       return 'je lis vos gestes';
     case 'ask_visitor':

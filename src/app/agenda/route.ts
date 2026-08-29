@@ -91,7 +91,7 @@ doit pouvoir cliquer, pas recomposer l'URL ; adaptez les valeurs) :</p>
 <li><a href="/api/places?query=piscine+chauffee&amp;minGrade=4">/api/places?query=piscine+chauffee&amp;minGrade=4</a> — texte libre + étoiles minimum</li>
 <li><a href="/llms.txt">/llms.txt</a> — description complète de la surface (paramètres, vocabulaire)</li>
 </ul>
-<p>Dans un navigateur compatible WebMCP, la page <a href="/fr">/fr</a> expose en plus 19 outils de site (send_scouts, find_events, filter_places, find_tonight…).</p>
+<p>Dans un navigateur compatible WebMCP, la page <a href="/fr">/fr</a> expose en plus 20 outils de site (send_scouts, find_events, filter_places, find_tonight…).</p>
 <ol>
 ${items}
 </ol>

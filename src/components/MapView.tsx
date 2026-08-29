@@ -293,6 +293,8 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
               url: f.url,
               d1: f.d1,
               d2: f.d2,
+              img: f.img,
+              glyph: f.glyph,
             });
             flag.getElement()?.classList.add('scout-flag-wrap--kept');
             flag.closePopup();

@@ -31,9 +31,11 @@ import { getScoutStore, runMission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { getViewportStore } from '@/lib/viewport';
 import { getPostcardStore } from '@/lib/postcard';
+import { composeCarnet, getCarnetStore } from '@/lib/carnet';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   askVisitorInput,
+  composeCarnetInput,
   sendScoutsInput,
   getScoutReportsInput,
   findTonightInput,
@@ -871,6 +873,46 @@ function defs(): ToolDef[] {
       },
     }),
     tool({
+      name: 'compose_carnet',
+      title: 'Le carnet de voyage',
+      description:
+        "Once the visitor has KEPT flags (their agreed plan), compose the briefing pack: " +
+        'a print-ready carnet de voyage with the real photographs, one section per day. ' +
+        'Reference ONLY kept item ids (check get_scout_reports or read_visitor_wish ' +
+        'first — unknown ids are refused with the valid list). Assign dated events to ' +
+        'their day, places to arrival/anytime sections; write day labels and notes in ' +
+        "the visitor's language. The visitor gets a Download-PDF button.",
+      schema: composeCarnetInput,
+      readOnly: false,
+      untrusted: false,
+      handler: (input: z.output<typeof composeCarnetInput>) => {
+        const kept = getShortlistStore().getSnapshot();
+        if (kept.length === 0) {
+          return {
+            total: 0,
+            data: {
+              error: 'empty_selection',
+              message: 'Nothing kept yet: send scouts and let the visitor keep flags first.',
+            },
+          };
+        }
+        const result = composeCarnet(kept, input.title, input.days, input.signoff);
+        if ('error' in result) {
+          return {
+            total: 0,
+            data: {
+              error: result.error,
+              unknownIds: result.unknownIds,
+              validIds: result.validIds,
+              message: 'Use only ids from the kept selection.',
+            },
+          };
+        }
+        getCarnetStore().set(result.carnet);
+        return { total: kept.length, data: { status: 'displayed', days: result.carnet.days.length } };
+      },
+    }),
+    tool({
       name: 'get_agent_demand',
       title: 'Agent demand this session',
       description:
@@ -896,7 +938,7 @@ function defs(): ToolDef[] {
 }
 
 /** Single source of truth for the registered tool count (badge, tests, E2E). */
-export const TOOL_COUNT = 19;
+export const TOOL_COUNT = 20;
 
 let registered = false;
 

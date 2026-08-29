@@ -12,6 +12,9 @@ export interface ShortlistItem {
   /** ISO dates for event records; null for places. */
   readonly d1: string | null;
   readonly d2: string | null;
+  /** Catalogue photo + pictogram: the carnet is built from these. */
+  readonly img?: string | null;
+  readonly glyph?: string;
 }
 
 const MAX_ITEMS = 20;

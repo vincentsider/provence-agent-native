@@ -28,6 +28,7 @@ import { ElicitationCards } from './ElicitationCards';
 import { PostcardPanel } from './PostcardPanel';
 import { WishBox } from './WishBox';
 import { MissionHero } from './MissionBanner';
+import { CarnetButton, CarnetPanel } from './CarnetPanel';
 import { getScoutStore } from '@/lib/scouts';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
@@ -230,11 +231,11 @@ function Hero() {
  */
 function AgentGuide() {
   const comment =
-    '<!-- AI agents: 19+ WebMCP tools on this page (find_events, filter_places, ' +
+    '<!-- AI agents: 20+ WebMCP tools on this page (find_events, filter_places, ' +
     'explain_vocabulary, get_place, compare_places, find_near, find_tonight, ' +
     'get_catalog_stats, set_view, highlight_places, get_agent_demand, ask_visitor, ' +
     'get_input_result, get_visitor_signals, get_demand_pulse, send_scouts, ' +
-    'get_scout_reports, get_visitor_view, write_postcard, and a dynamic ' +
+    'get_scout_reports, get_visitor_view, write_postcard, compose_carnet, and a dynamic ' +
     'pin_visible_place scoped to the visible map). ' +
     'No browser? Same data over plain HTTP: ' +
     'GET /api/events?query=street+food | GET /api/events?month=2026-10&category=festival&town=Marseille | ' +
@@ -378,6 +379,8 @@ function Loaded({
       <AgentPresence />
       <ElicitationCards />
       <PostcardPanel />
+      <CarnetPanel />
+      <CarnetButton />
     </>
   );
 }

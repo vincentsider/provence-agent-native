@@ -299,6 +299,30 @@ export const writePostcardInput = z
   })
   .strict();
 
+export const composeCarnetInput = z
+  .object({
+    title: z.string().min(3).max(60)
+      .describe("Carnet title in the visitor's language, e.g. \"Week-end à Cassis\"."),
+    days: z
+      .array(
+        z
+          .object({
+            label: z.string().min(2).max(30)
+              .describe('Day heading, e.g. "Samedi matin" / "Saturday evening".'),
+            itemIds: z.array(z.number().int()).min(1).max(10)
+              .describe('Ids from the KEPT selection only (get_scout_reports / read_visitor_wish).'),
+            note: z.string().max(240).optional()
+              .describe('One short editorial line for the day.'),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(7),
+    signoff: z.string().max(120).optional()
+      .describe('Closing line, first person.'),
+  })
+  .strict();
+
 export const getAgentDemandInput = z
   .object({
     zeroResultsOnly: z

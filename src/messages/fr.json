@@ -83,5 +83,16 @@
     "agentChip": "Affiché par l'agent (liseré jaune)",
     "flag": "Trouvaille des éclaireurs — tapez pour garder/écarter",
     "pulse": "Demande des voyageurs (7 jours)"
+  },
+  "carnet": {
+    "aria": "Carnet de voyage",
+    "open": "Mon carnet ({count})",
+    "defaultTitle": "Mon carnet de Provence",
+    "anytime": "À tout moment du séjour",
+    "kicker": "MYPROVENCE · Carnet de voyage",
+    "credit": "Composé avec vos choix — lieux, dates et photos du catalogue officiel Provence Tourisme",
+    "sources": "Toutes les fiches renvoient vers myprovence.fr. Photos © offices de tourisme des Bouches-du-Rhône.",
+    "pdf": "Télécharger en PDF",
+    "close": "Fermer"
   }
 }

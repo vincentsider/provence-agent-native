@@ -275,3 +275,15 @@
 }
 .map-legend p { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 .map-legend .poi-chip, .map-legend .demand-pulse { transform: scale(0.7); transform-origin: left center; flex: none; }
+
+/* --- Carnet print layout (29 Aug): print-to-PDF IS the download. --- */
+@media print {
+  body * { visibility: hidden; }
+  .carnet-overlay, .carnet-overlay * { visibility: visible; }
+  .carnet-overlay { position: absolute !important; inset: 0 !important; }
+  .carnet-day { page-break-inside: avoid; }
+  @page { size: A4; margin: 12mm; }
+}
+
+/* Inner spans must not swallow clicks: the marker ROOT owns interaction. */
+.scout-flag, .scout-flag-glyph, .poi-chip { pointer-events: none; }

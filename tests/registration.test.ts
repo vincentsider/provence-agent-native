@@ -97,6 +97,7 @@ describe('registerAll resilience', () => {
         [
           'ask_visitor',
           'compare_places',
+          'compose_carnet',
           'explain_vocabulary',
           'filter_places',
           'find_events',
@@ -125,6 +126,7 @@ describe('registerAll resilience', () => {
       // ask_visitor renders UI and waits: honestly not read-only.
       expect(writeTools.map((t) => t.name).sort()).toEqual([
         'ask_visitor',
+        'compose_carnet',
         'highlight_places',
         'set_view',
         'write_postcard',

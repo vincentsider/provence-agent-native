@@ -21,11 +21,13 @@
 
 - /agenda — server-rendered next-90-days agenda (no JavaScript needed)
 - /fr and /en — the full catalogue browser; in a WebMCP-capable browser it
-  exposes 19+ site tools (find_events, filter_places, explain_vocabulary,
+  exposes 20+ site tools (find_events, filter_places, explain_vocabulary,
   get_place, compare_places, find_near, find_tonight, get_catalog_stats,
   set_view, highlight_places, get_agent_demand, ask_visitor,
   get_input_result, get_visitor_signals, get_demand_pulse, send_scouts,
-  get_scout_reports, get_visitor_view, write_postcard, plus a dynamic
+  get_scout_reports, get_visitor_view, write_postcard, compose_carnet
+  (the kept selection becomes a print-ready day-by-day travel pack), plus
+  a dynamic
   pin_visible_place whose schema lists only what is on the visitor's
   screen) over the same shared view.
   send_scouts turns one fuzzy multi-criteria wish (stated in ANY language,

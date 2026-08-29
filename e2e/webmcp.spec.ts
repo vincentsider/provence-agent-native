@@ -124,7 +124,7 @@ test.describe('webmcp tools', () => {
       async () => {
         const mc = (document as never as { modelContext: { getTools(): Promise<unknown[]> } })
           .modelContext;
-        return (await mc.getTools()).length >= 19;
+        return (await mc.getTools()).length >= 20;
       },
       { timeout: 5_000 },
     );
@@ -251,7 +251,7 @@ test.describe('gesture dialogue', () => {
     };
     await page.waitForFunction(
       async () =>
-        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 20,
       { timeout: 5_000 },
     );
 
@@ -344,7 +344,7 @@ test.describe('v3 scouts and keepsake', () => {
 
     await page.waitForFunction(
       async () =>
-        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 20,
       { timeout: 5_000 },
     );
 
@@ -414,7 +414,7 @@ test.describe('v3 scouts and keepsake', () => {
 
     await page.waitForFunction(
       async () =>
-        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 20,
       { timeout: 5_000 },
     );
     // The map publishes its viewport within the 300ms debounce.
@@ -526,5 +526,29 @@ test.describe('wish box', () => {
         ),
       { timeout: 10_000 },
     );
+  });
+});
+
+/** Le carnet (29 Aug): the agreed plan becomes the briefing pack. */
+test.describe('carnet de voyage', () => {
+  test('keeping a flag surfaces the carnet button; the pack renders and closes', async ({ page }) => {
+    await page.goto('/fr');
+    const box = page.getByTestId('wish-box');
+    await box.getByRole('textbox').fill('un hôtel à Cassis avec parking et un marché sympa');
+    await box.getByRole('button').click();
+    const flag = page.locator('.scout-flag-wrap').first();
+    await flag.waitFor({ state: 'visible', timeout: 10_000 });
+    await flag.click();
+    await page.locator('.scout-popup-keep').click();
+
+    const button = page.getByTestId('carnet-button');
+    await expect(button).toBeVisible();
+    await button.click();
+    const carnet = page.getByTestId('carnet');
+    await expect(carnet).toBeVisible();
+    await expect(carnet).toContainText('myprovence.fr');
+    await expect(page.getByTestId('carnet-pdf')).toBeVisible();
+    await page.getByTestId('carnet-close').click();
+    await expect(carnet).not.toBeVisible();
   });
 });

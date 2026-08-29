@@ -83,5 +83,16 @@
     "agentChip": "Shown by the agent (yellow ring)",
     "flag": "Scout find — tap to keep/dismiss",
     "pulse": "Traveler demand (7 days)"
+  },
+  "carnet": {
+    "aria": "Travel logbook",
+    "open": "My logbook ({count})",
+    "defaultTitle": "My Provence logbook",
+    "anytime": "Anytime during the stay",
+    "kicker": "MYPROVENCE · Travel logbook",
+    "credit": "Composed from your picks — places, dates and photos from the official Provence Tourisme catalogue",
+    "sources": "Every card links to myprovence.fr. Photos © Bouches-du-Rhône tourism offices.",
+    "pdf": "Download as PDF",
+    "close": "Close"
   }
 }
