@@ -19,6 +19,9 @@ export type VisitorSignal =
   | { kind: 'ping'; ping: Ping }
   | { kind: 'lock'; placeId: number; locked: boolean; at: number }
   | { kind: 'answer'; question: string; choice: string; at: number }
+  /** The visitor typed a wish into the page's own box (v3): the page has
+   *  already dispatched scouts for it; the agent reads it here to continue. */
+  | { kind: 'wish'; text: string; at: number }
   | { kind: 'yield'; at: number };
 
 const RING_CAP = 100;
@@ -55,6 +58,10 @@ export class SignalsLog {
     if (this.#pings.length > MAX_PINGS) this.#pings.shift();
     this.#push({ kind: 'ping', ping });
     return ping;
+  }
+
+  addWish(text: string): void {
+    this.#push({ kind: 'wish', text: text.slice(0, 160), at: Date.now() });
   }
 
   toggleLock(placeId: number): boolean {

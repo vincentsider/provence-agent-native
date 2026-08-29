@@ -481,3 +481,17 @@ test.describe('v3 scouts and keepsake', () => {
     }
   });
 });
+
+/** The wish box (29 Aug hardening): the page dispatches scouts itself. */
+test.describe('wish box', () => {
+  test('typing a wish launches scouts with no agent involved', async ({ page }) => {
+    await page.goto('/fr');
+    const box = page.getByTestId('wish-box');
+    await box.getByRole('textbox').fill('un hôtel à Cassis avec parking et un marché sympa');
+    await box.getByRole('button').click();
+    // Flags appear from the page's own dispatch.
+    await page.locator('.scout-flag-wrap').first().waitFor({ state: 'visible', timeout: 10_000 });
+    // And the top banner spoke.
+    await expect(page.getByTestId('agent-banner')).toBeVisible();
+  });
+});

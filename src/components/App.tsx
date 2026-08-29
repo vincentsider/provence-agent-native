@@ -25,6 +25,7 @@ import { DemandMirror } from './DemandMirror';
 import { AgentPresence } from './AgentPresence';
 import { ElicitationCards } from './ElicitationCards';
 import { PostcardPanel } from './PostcardPanel';
+import { WishBox } from './WishBox';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
 
@@ -186,6 +187,7 @@ function Hero() {
         <p className="mx-auto mt-4 max-w-[640px] font-slab text-[17px] leading-relaxed text-brand-ink/90">
           {t('subtitle')}
         </p>
+        <WishBox />
         <div className="mt-5 flex justify-center">
           <WebMcpBadge />
         </div>

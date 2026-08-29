@@ -630,8 +630,10 @@ function defs(): ToolDef[] {
         'The visitor talks with their hands: pings dropped on the map ' +
         '(plus-comme-ca = more like this here, eviter = avoid this area, question = ' +
         'curious about this spot), locks on results (their firm choices — never argue), ' +
-        'card answers, and yields. Returns gestures since your last call plus current ' +
-        'locks and pings. Call it whenever you are about to search or propose.',
+        'card answers, typed WISHES (they wrote a desire into the page box: the page ' +
+        'already dispatched scouts for it — read their verdicts and continue, do not ' +
+        'redo the search), and yields. Returns gestures since your last call plus ' +
+        'current locks and pings. Call it whenever you are about to search or propose.',
       schema: getVisitorSignalsInput,
       readOnly: true,
       untrusted: false,
