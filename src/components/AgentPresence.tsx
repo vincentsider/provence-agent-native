@@ -18,7 +18,6 @@ import { getPresenceBus, type PresenceEvent } from '@/lib/presence';
 import { getSignalsLog } from '@/lib/signals';
 
 const PARK_DELAY_MS = 5_000;
-const INTENT_FADE_MS = 3_500;
 const ORBIT_MS = 1_400;
 const ORBIT_RADIUS_PX = 26;
 
@@ -26,7 +25,6 @@ interface CursorState {
   x: number;
   y: number;
   parked: boolean;
-  intent: string | null;
 }
 
 function centerOf(selector: string): { x: number; y: number } | null {
@@ -43,10 +41,12 @@ function parkPosition(): { x: number; y: number } {
 
 export function AgentPresence() {
   const bus = getPresenceBus();
-  const [cursor, setCursor] = useState<CursorState>({ x: -100, y: -100, parked: true, intent: null });
+  const [cursor, setCursor] = useState<CursorState>({ x: -100, y: -100, parked: true });
   const [visible, setVisible] = useState(false);
+  // The banner is the human-facing voice: top-center, big, shows the current
+  // intent while the agent works and retires with the body.
+  const [banner, setBanner] = useState<string | null>(null);
   const parkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orbitRaf = useRef<number | null>(null);
   const activeRef = useRef(false);
   const reducedMotion = useRef(false);
@@ -58,17 +58,16 @@ export function AgentPresence() {
 
     const clearTimers = () => {
       if (parkTimer.current) clearTimeout(parkTimer.current);
-      if (intentTimer.current) clearTimeout(intentTimer.current);
       if (orbitRaf.current !== null) cancelAnimationFrame(orbitRaf.current);
       parkTimer.current = null;
-      intentTimer.current = null;
       orbitRaf.current = null;
     };
 
     const park = () => {
       activeRef.current = false;
       const p = parkPosition();
-      setCursor((c) => ({ ...c, x: p.x, y: p.y, parked: true, intent: null }));
+      setCursor((c) => ({ ...c, x: p.x, y: p.y, parked: true }));
+      setBanner(null);
     };
 
     const scheduleParking = () => {
@@ -109,12 +108,8 @@ export function AgentPresence() {
         case 'announce': {
           activeRef.current = true;
           setVisible(true);
-          setCursor((c) => ({ ...c, intent: e.intent, parked: false }));
-          if (intentTimer.current) clearTimeout(intentTimer.current);
-          intentTimer.current = setTimeout(
-            () => setCursor((c) => ({ ...c, intent: null })),
-            INTENT_FADE_MS,
-          );
+          setCursor((c) => ({ ...c, parked: false }));
+          setBanner(e.intent);
           scheduleParking();
           break;
         }
@@ -186,35 +181,56 @@ export function AgentPresence() {
   if (!visible) return null;
 
   return (
-    <div
-      data-testid="agent-presence"
-      aria-hidden
-      className="pointer-events-none fixed left-0 top-0 z-[1000]"
-      style={{
-        transform: `translate(${cursor.x}px, ${cursor.y}px)`,
-        transition: reducedMotion.current ? 'none' : 'transform 700ms cubic-bezier(.3,.9,.3,1)',
-        opacity: cursor.parked ? 0.35 : 1,
-      }}
-    >
-      {/* pen nib, brand ink */}
-      <svg width="22" height="22" viewBox="0 0 24 24" className="drop-shadow-sm">
-        <path
-          d="M3 21 L14 4 L20 10 L7 21 Z M14 4 L20 10"
-          fill="#002731"
-          stroke="#FFE500"
-          strokeWidth="1.2"
-        />
-      </svg>
-      <div className="mt-1 flex max-w-[260px] flex-col items-start gap-1">
-        <span className="display-caps bg-brand-petrol px-1.5 py-0.5 text-[9px] leading-none text-brand-yellow">
-          l&apos;agent
-        </span>
-        {cursor.intent && (
-          <span className="bg-white/95 px-2 py-1 font-slab text-[12px] leading-snug text-brand-ink shadow-sm">
-            {cursor.intent}
-          </span>
-        )}
+    <>
+      {/* The voice: fixed top-center, unmissable while the agent works. */}
+      {banner && !cursor.parked && (
+        <div
+          data-testid="agent-banner"
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 top-3 z-[1100] w-[min(92vw,680px)] -translate-x-1/2"
+        >
+          <div className="flex items-center gap-4 border-2 border-brand-yellow bg-brand-petrol px-5 py-3 shadow-[6px_6px_0_rgba(0,39,49,0.35)]">
+            {/* pen nib echo */}
+            <svg width="26" height="26" viewBox="0 0 24 24" className="shrink-0">
+              <path
+                d="M3 21 L14 4 L20 10 L7 21 Z M14 4 L20 10"
+                fill="#FFE500"
+                stroke="#002731"
+                strokeWidth="1.2"
+              />
+            </svg>
+            <div className="min-w-0">
+              <span className="display-caps block text-[11px] leading-none text-brand-yellow">
+                l&apos;agent
+              </span>
+              <span className="mt-1 block truncate font-slab text-[17px] leading-snug text-white">
+                {banner}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* The body: the nib still travels to what it operates. */}
+      <div
+        data-testid="agent-presence"
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 z-[1000]"
+        style={{
+          transform: `translate(${cursor.x}px, ${cursor.y}px)`,
+          transition: reducedMotion.current ? 'none' : 'transform 700ms cubic-bezier(.3,.9,.3,1)',
+          opacity: cursor.parked ? 0.35 : 1,
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" className="drop-shadow-sm">
+          <path
+            d="M3 21 L14 4 L20 10 L7 21 Z M14 4 L20 10"
+            fill="#002731"
+            stroke="#FFE500"
+            strokeWidth="1.2"
+          />
+        </svg>
       </div>
-    </div>
+    </>
   );
 }

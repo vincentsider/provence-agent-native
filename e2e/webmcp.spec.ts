@@ -158,6 +158,8 @@ test.describe('webmcp tools', () => {
     await expect(page.getByTestId('highlighted-count')).toHaveText(
       String(result.data.returned),
     );
+    // And the top-center banner told the human what the agent was doing.
+    await expect(page.getByTestId('agent-banner')).toBeVisible();
     // And the Demand Mirror recorded it.
     await expect(page.getByTestId('mirror-entries')).toContainText('filter_places');
   });
