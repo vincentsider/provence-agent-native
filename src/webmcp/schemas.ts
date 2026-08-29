@@ -254,7 +254,7 @@ export const findTonightInput = z
   .object({
     date: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
       .optional()
       .describe("Day to look at, YYYY-MM-DD. Omit for today (the visitor's day)."),
     town: z.string().min(1).max(80).optional()

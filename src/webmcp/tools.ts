@@ -25,7 +25,7 @@ import { getElicitationStore } from '@/lib/elicitation';
 import { getSignalsLog } from '@/lib/signals';
 import { getPulseStore } from '@/lib/pulse-client';
 import type { PulseData } from '@/lib/demand-pulse';
-import { haversineKm } from '@/lib/engine';
+import { selectTonight } from '@/lib/tonight';
 import { getScoutStore, runMission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { getViewportStore } from '@/lib/viewport';
@@ -722,28 +722,21 @@ function defs(): ToolDef[] {
         if (!center && input.town === undefined) {
           center = store.getView().center;
         }
+        // 800-candidate pool: a big town's day overlaps hundreds of
+        // long-running events, and a 200 cap was cutting the one-night ones
+        // the ranker exists to surface (audit pass 7).
         const { places } = store.peekFilter({
           cluster: 'agenda',
           town: input.town,
           from: date,
           to: date,
-          limit: 200,
+          limit: 800,
           offset: 0,
         });
-        let shaped = places.map((p) => {
-          const pub = store.toPublicShape(p);
-          const distanceKm =
-            center && p.lat !== null && p.lng !== null
-              ? Math.round(haversineKm(center.lat, center.lng, p.lat, p.lng) * 10) / 10
-              : null;
-          return { ...pub, distance_km: distanceKm };
-        });
-        if (center) {
-          shaped = shaped
-            .filter((e) => e.distance_km === null || e.distance_km <= radius)
-            .sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
-        }
-        shaped = shaped.slice(0, limit);
+        const shaped = selectTonight(places, center, radius, limit).map((pick) => ({
+          ...store.toPublicShape(pick.place),
+          distance_km: pick.distanceKm,
+        }));
         store.setHighlightedIds(shaped.map((e) => e.id), 'agent');
         if (center) store.setView(center, 12, 'agent');
         return {

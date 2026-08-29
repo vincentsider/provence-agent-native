@@ -90,9 +90,16 @@ export function runMission(
   briefs: readonly ScoutBrief[],
   today: string,
 ): Mission {
+  // Scouts explore DIFFERENT angles: a place already claimed by an earlier
+  // scout is skipped, so two scouts never plant duplicate flags on one roof
+  // (audit pass 7). The engine is asked for extra rows to compensate.
+  const claimed = new Set<number>();
   const reports: ScoutReport[] = briefs.slice(0, MAX_SCOUTS).map((brief, i) => {
-    const { total, places } = store.peekFilter(briefToFilter(brief));
-    const findings: ScoutFinding[] = places.slice(0, MAX_FINDINGS).map((p) => {
+    const filter = briefToFilter(brief);
+    const { total, places } = store.peekFilter({ ...filter, limit: MAX_FINDINGS * 3 });
+    const fresh = places.filter((p) => !claimed.has(p.id)).slice(0, MAX_FINDINGS);
+    for (const p of fresh) claimed.add(p.id);
+    const findings: ScoutFinding[] = fresh.map((p) => {
       const pub = store.toPublicShape(p);
       const isEvent = p.d1 !== undefined;
       let upcoming: ScoutFinding['upcoming'] = null;

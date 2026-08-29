@@ -17,6 +17,7 @@ import {
   explainVocabularyInput,
   filterPlacesInput,
   findEventsInput,
+  findTonightInput,
   findNearInput,
   getCatalogStatsInput,
   getPlaceInput,
@@ -31,6 +32,7 @@ import {
 } from './engine';
 import { listVocabulary } from './vocab';
 import { toPublicShape } from './public-shape';
+import { selectTonight } from './tonight';
 import { CANONICAL_HOST, CLUSTERS, categoryOf, fold } from './types';
 import type { ServerCatalog } from './server-catalog';
 import type { PulseData } from './demand-pulse';
@@ -123,6 +125,47 @@ const TOOLS: McpTool[] = [
         returned: indices.length,
         truncated: total > v.offset + indices.length,
         results: indices.map((i) => shape(sc, i)),
+      };
+    },
+  },
+  {
+    name: 'find_tonight',
+    description:
+      'What is happening TODAY (or a given date, YYYY-MM-DD) in Provence: real dated ' +
+      'events from the official agenda, nearest first when a town or coordinates are ' +
+      'given, one-night events ranked before permanent ones. Use for "tonight", ' +
+      '"ce soir", "this weekend" (one call per day). No date given = today in UTC; ' +
+      'pass the date explicitly for a visitor timezone.',
+    schema: findTonightInput,
+    run: (input, sc) => {
+      const v = findTonightInput.parse(input ?? {});
+      const date = v.date ?? new Date().toISOString().slice(0, 10);
+      const radius = v.radius_km ?? 15;
+      const limit = v.limit ?? 12;
+      const center =
+        v.lat !== undefined && v.lng !== undefined ? { lat: v.lat, lng: v.lng } : null;
+      const { indices } = runFilter(sc.catalog, sc.indexes, {
+        cluster: 'agenda',
+        town: v.town,
+        from: date,
+        to: date,
+        limit: 800,
+        offset: 0,
+      });
+      const picks = selectTonight(
+        indices.map((i) => sc.catalog.places[i]!),
+        center,
+        radius,
+        limit,
+      );
+      return {
+        date,
+        center,
+        radius_km: center ? radius : null,
+        events: picks.map((pick) => ({
+          ...toPublicShape(pick.place, sc.vocab, sc.indexes.aliasToCanonical),
+          distance_km: pick.distanceKm,
+        })),
       };
     },
   },

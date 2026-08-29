@@ -46,7 +46,7 @@ function fixtureEngine(): ScoutEngine {
   return {
     peekFilter: (input: FilterInput) => {
       const { total, indices } = runFilter(catalog, indexes, input);
-      return { total, indices, places: indices.map((i) => catalog.places[i]!) };
+      return { total, indices: [...indices], places: indices.map((i) => catalog.places[i]!) };
     },
     toPublicShape: (p: Place) => toPublicShape(p, vocab, indexes.aliasToCanonical),
   };
@@ -91,6 +91,22 @@ describe('runMission', () => {
       expect(r.findings.length).toBeLessThanOrEqual(MAX_FINDINGS);
       expect(Object.values(r.verdicts).every((v) => v === 'pending')).toBe(true);
     }
+  });
+});
+
+describe('runMission dedupe', () => {
+  it('never lets two scouts claim the same place', () => {
+    const mission = runMission(
+      fixtureEngine(),
+      'double angle',
+      [
+        { label: 'hôtels A', town: 'Cassis', cluster: 'hotels' },
+        { label: 'hôtels B', tags: ['parking'] }, // same two hotels match
+      ],
+      '2026-09-01',
+    );
+    const ids = mission.reports.flatMap((r) => r.findings.map((f) => f.id));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

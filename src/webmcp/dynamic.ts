@@ -147,18 +147,26 @@ async function reregister(): Promise<void> {
       recordRegistration(true, 'pin_visible_place');
     }
   } catch (err) {
-    // A duplicate-name rejection means the abort did not unregister: this
-    // browser has no signal support. Keep the first registration (its
-    // handler validates visibility itself) and stop churning the schema.
-    if (!signalUnsupported) {
+    const everSucceeded = recorded;
+    if (everSucceeded) {
+      // A duplicate-name rejection after a success means the abort did not
+      // unregister: no signal support. The live registration stays valid
+      // (its handler checks visibility at call time); stop churning.
       signalUnsupported = true;
       lastKey = key;
       return;
     }
-    if (!recorded) {
-      recorded = true;
-      recordRegistration(false, 'pin_visible_place', String(err).slice(0, 200));
+    if (!signalUnsupported) {
+      // The very FIRST registration failed (e.g. the enum schema was
+      // refused). Retry once on the next change with the plain schema —
+      // lastKey stays '' so the guard lets that retry through.
+      signalUnsupported = true;
+      return;
     }
+    // Plain-schema retry failed too: record and stop.
+    recorded = true;
+    lastKey = key;
+    recordRegistration(false, 'pin_visible_place', String(err).slice(0, 200));
   }
 }
 
