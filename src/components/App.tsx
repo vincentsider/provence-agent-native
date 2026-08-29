@@ -15,6 +15,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { TOOL_COUNT, registerAll } from '@/webmcp/tools';
 import { startViewportTool } from '@/webmcp/dynamic';
+import { startWishHeartbeat } from '@/webmcp/heartbeat';
 import { getServerWebMcpStatus, getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
@@ -26,12 +27,14 @@ import { AgentPresence } from './AgentPresence';
 import { ElicitationCards } from './ElicitationCards';
 import { PostcardPanel } from './PostcardPanel';
 import { WishBox } from './WishBox';
+import { MissionBanner } from './MissionBanner';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
 
 if (typeof document !== 'undefined') {
   registerAll();
   startViewportTool();
+  startWishHeartbeat();
 }
 
 const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
@@ -332,6 +335,7 @@ function Loaded({
         onCluster={(c) => setFilter({ tags: [], town: null, cluster: c })}
       />
       <Hero />
+      <MissionBanner />
 
       <main className="mx-auto max-w-[1400px] px-5 py-8">
         {view.loadState === 'error' && (

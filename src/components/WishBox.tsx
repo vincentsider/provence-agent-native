@@ -37,6 +37,8 @@ export function WishBox() {
         const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const mission = runMission(store, text, briefs, day);
         getScoutStore().start(mission);
+        const ids = mission.reports.flatMap((r) => r.findings.map((f) => f.id));
+        if (ids.length > 0) store.setHighlightedIds(ids, 'agent');
         try {
           getSignalsLog().addWish(text);
           getPresenceBus().emit({

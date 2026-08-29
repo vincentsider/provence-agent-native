@@ -72,5 +72,10 @@
     "placeholder": "Your wish… e.g. quiet village, Friday market, near the sea",
     "cta": "Send the scouts",
     "intent": "your {count} scouts are heading out"
+  },
+  "mission": {
+    "aria": "Scout mission in progress",
+    "kicker": "Mission in progress — your scouts on the map",
+    "findings": "{count} finds"
   }
 }

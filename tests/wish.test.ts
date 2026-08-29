@@ -72,3 +72,35 @@ describe('parseWish', () => {
     expect(towns).toHaveLength(2);
   });
 });
+
+describe('describeContext heartbeat', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { describeContext } = require('@/webmcp/heartbeat') as typeof import('@/webmcp/heartbeat');
+
+  it('narrates wish, scouts and kept flags, capped for a tool description', () => {
+    const text = describeContext({
+      wish: 'un village calme près de la mer',
+      mission: {
+        missionId: 'm1',
+        mission: 'un village calme',
+        reports: [
+          { scoutId: 's1', label: 'hôtels · Cassis', total: 5, findings: [], verdicts: {} },
+          { scoutId: 's2', label: 'agenda · Cassis', total: 3, findings: [], verdicts: {} },
+        ],
+      },
+      kept: [
+        { id: 1, name: 'Le Jardin d\'Emile', town: 'Cassis', url: 'u', d1: null, d2: null },
+      ],
+    });
+    expect(text).toContain('un village calme près de la mer');
+    expect(text).toContain('2 scouts');
+    expect(text).toContain('KEPT 1');
+    expect(text).toContain("Le Jardin d'Emile");
+    expect(text.length).toBeLessThanOrEqual(950);
+  });
+
+  it('long wishes are clipped, the description never overflows', () => {
+    const text = describeContext({ wish: 'x'.repeat(500), mission: null, kept: [] });
+    expect(text.length).toBeLessThanOrEqual(950);
+  });
+});

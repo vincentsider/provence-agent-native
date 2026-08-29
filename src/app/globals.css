@@ -191,3 +191,21 @@
   .leaflet-marker-icon.scout-body { transition: none; }
   .scout-flag::after { animation: none; }
 }
+
+/* --- Mission takeover (29 Aug) --- */
+.mission-wish {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  animation: ink-write 1.4s steps(40, end);
+}
+.mission-chip { animation: mission-chip-in 420ms ease-out backwards; }
+@keyframes mission-chip-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mission-wish, .mission-chip { animation: none; }
+}

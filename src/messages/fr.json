@@ -72,5 +72,10 @@
     "placeholder": "Votre envie… ex : village calme, marché le vendredi, près de la mer",
     "cta": "Envoyer les éclaireurs",
     "intent": "vos {count} éclaireurs partent sur la carte"
+  },
+  "mission": {
+    "aria": "Mission des éclaireurs en cours",
+    "kicker": "Mission en cours — vos éclaireurs sur la carte",
+    "findings": "{count} trouvailles"
   }
 }

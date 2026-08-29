@@ -251,6 +251,10 @@ function defs(): ToolDef[] {
         const today = localDay();
         const mission = runMission(store, input.mission, input.scouts, today);
         getScoutStore().start(mission);
+        // The whole page answers, not just the map: the findings become the
+        // shared result set (grid, count, agent chip).
+        const ids = mission.reports.flatMap((r) => r.findings.map((f) => f.id));
+        if (ids.length > 0) store.setHighlightedIds(ids, 'agent');
         try {
           getPresenceBus().emit({ phase: 'focus', target: 'map' });
           getPresenceBus().emit({ phase: 'act', tool: 'send_scouts' });

@@ -493,5 +493,38 @@ test.describe('wish box', () => {
     await page.locator('.scout-flag-wrap').first().waitFor({ state: 'visible', timeout: 10_000 });
     // And the top banner spoke.
     await expect(page.getByTestId('agent-banner')).toBeVisible();
+    // The mission takeover: full-width band + the grid becomes the findings.
+    await expect(page.getByTestId('mission-banner')).toBeVisible();
+    await expect(page.getByTestId('mission-banner')).toContainText('parking');
+  });
+
+  test('the heartbeat tool appears once the visitor has acted', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+    type Mc = { getTools(): Promise<Array<{ name: string; description: string }>> };
+
+    // Before any visitor action, the wire tool does not exist.
+    const before = await page.evaluate(async () =>
+      (await (document as never as { modelContext: Mc }).modelContext.getTools()).some(
+        (t) => t.name === 'read_visitor_wish',
+      ),
+    );
+    expect(before).toBe(false);
+
+    const box = page.getByTestId('wish-box');
+    await box.getByRole('textbox').fill('un week-end nature dans les Alpilles');
+    await box.getByRole('button').click();
+
+    // After the wish, it appears with the live state in its DESCRIPTION.
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).some(
+          (t) => t.name === 'read_visitor_wish' && t.description.includes('Alpilles'),
+        ),
+      { timeout: 10_000 },
+    );
   });
 });
