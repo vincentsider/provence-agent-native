@@ -77,5 +77,11 @@
     "aria": "Scout mission in progress",
     "kicker": "Mission in progress — your scouts on the map",
     "findings": "{count} finds"
+  },
+  "legend": {
+    "chip": "A place (pictogram = type: hotel, kayak, market…)",
+    "agentChip": "Shown by the agent (yellow ring)",
+    "flag": "Scout find — tap to keep/dismiss",
+    "pulse": "Traveler demand (7 days)"
   }
 }

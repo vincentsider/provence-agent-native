@@ -77,5 +77,11 @@
     "aria": "Mission des éclaireurs en cours",
     "kicker": "Mission en cours — vos éclaireurs sur la carte",
     "findings": "{count} trouvailles"
+  },
+  "legend": {
+    "chip": "Un lieu (pictogramme = type : hôtel, kayak, marché…)",
+    "agentChip": "Affiché par l'agent (liseré jaune)",
+    "flag": "Trouvaille des éclaireurs — tapez pour garder/écarter",
+    "pulse": "Demande des voyageurs (7 jours)"
   }
 }

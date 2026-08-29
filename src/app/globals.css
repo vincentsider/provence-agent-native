@@ -225,3 +225,53 @@
 @media (prefers-reduced-motion: reduce) {
   .mission-photo, .mission-photo-img { animation: none; }
 }
+
+/* --- Pictogram chips + legend (29 Aug) --- */
+.poi-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #ee6e62;
+  box-shadow: 0 1px 3px rgba(0, 39, 49, 0.35);
+  font-size: 14px;
+  line-height: 1;
+}
+.poi-chip--agent {
+  border-color: #002731;
+  box-shadow: 0 0 0 2px #ffe500, 0 1px 3px rgba(0, 39, 49, 0.35);
+}
+.poi-chip--approx { border-style: dashed; opacity: 0.75; }
+.scout-flag-glyph {
+  position: absolute;
+  left: 8px;
+  top: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--tint, #002731);
+  font-size: 12px;
+  line-height: 1;
+}
+.map-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 800;
+  background: rgba(255, 253, 245, 0.95);
+  border: 1px solid rgba(0, 39, 49, 0.25);
+  padding: 8px 10px;
+  font-family: var(--font-slab), Georgia, serif;
+  font-size: 11px;
+  color: #002731;
+  max-width: 210px;
+}
+.map-legend p { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.map-legend .poi-chip, .map-legend .demand-pulse { transform: scale(0.7); transform-origin: left center; flex: none; }

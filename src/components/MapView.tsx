@@ -21,6 +21,7 @@ import { getScoutStore, MAX_FINDINGS, type Mission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { fold } from '@/lib/types';
 import { townCentroids } from '@/lib/centroids';
+import { pickGlyph } from '@/lib/glyphs';
 import { useTranslations } from 'next-intl';
 import 'leaflet/dist/leaflet.css';
 
@@ -53,6 +54,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   const pulseLayerRef = useRef<LayerGroup | null>(null);
   const scoutLayerRef = useRef<LayerGroup | null>(null);
   const t = useTranslations('scouts');
+  const tl = useTranslations('legend');
 
   // Create once, destroy on unmount.
   useEffect(() => {
@@ -256,8 +258,10 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           const flag = L.marker([spot.lat, spot.lng], {
             icon: L.divIcon({
               className: 'scout-flag-wrap',
-              html: `<span class="scout-flag" style="--tint:${tint}"></span>`,
-              iconAnchor: [3, 22],
+              html:
+                `<span class="scout-flag" style="--tint:${tint}"></span>` +
+                `<span class="scout-flag-glyph">${f.glyph}</span>`,
+              iconAnchor: [3, 30],
             }),
           }).addTo(layer);
           // Popup content is BUILT, never innerHTML'd: names are catalogue
@@ -519,14 +523,16 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           }).addTo(group);
           void label;
         }
-        L.circleMarker([at.lat, at.lng], {
-          radius: 8,
-          weight: agentDriven ? 3 : 2,
-          color: agentDriven ? YELLOW : '#ffffff',
-          // Hollow fill marks "somewhere in this town", not an address.
-          fillColor: agentDriven ? PETROL : CORAL,
-          fillOpacity: at.approx ? 0.35 : 0.95,
-          dashArray: at.approx ? '3 3' : undefined,
+        // The sign conveys the thing (field request 29 Aug): a pictogram
+        // chip per record; the border still says who put it there.
+        L.marker([at.lat, at.lng], {
+          icon: L.divIcon({
+            className: 'ink-label-wrap',
+            html:
+              `<span class="poi-chip${agentDriven ? ' poi-chip--agent' : ''}${at.approx ? ' poi-chip--approx' : ''}">` +
+              `${pickGlyph(p, store.vocab)}</span>`,
+            iconAnchor: [13, 13],
+          }),
         })
           .bindPopup(
             `<span class="display-caps" style="font-size:12px;color:${PETROL}">${escapeHtml(p.n)}</span>` +
@@ -546,14 +552,30 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
 
   return (
     <div className="relative">
-      <div
-        ref={containerRef}
-        data-testid="map"
-        data-presence="map"
-        role="region"
-        aria-label="Carte"
-        className="h-[420px] w-full border border-brand-ink/10"
-      />
+      <div className="relative">
+        <div
+          ref={containerRef}
+          data-testid="map"
+          data-presence="map"
+          role="region"
+          aria-label="Carte"
+          className="h-[420px] w-full border border-brand-ink/10"
+        />
+        <div className="map-legend" data-testid="map-legend">
+          <p>
+            <span className="poi-chip">🛏</span> {tl('chip')}
+          </p>
+          <p>
+            <span className="poi-chip poi-chip--agent">🧺</span> {tl('agentChip')}
+          </p>
+          <p>
+            <span aria-hidden className="inline-block h-[22px] w-[6px] bg-brand-petrol" /> {tl('flag')}
+          </p>
+          <p>
+            <span aria-hidden className="demand-pulse" style={{ ['--size' as string]: '18px' }} /> {tl('pulse')}
+          </p>
+        </div>
+      </div>
       {wheel && (
         <div
           data-testid="ping-wheel"

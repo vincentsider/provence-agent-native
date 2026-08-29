@@ -10,10 +10,11 @@
  */
 
 import type { Store } from './store';
+import { pickGlyph } from './glyphs';
 import type { ClusterKey, FilterInput } from './types';
 
 /** The two Store capabilities a mission needs; narrow so tests can stub it. */
-export type ScoutEngine = Pick<Store, 'peekFilter' | 'toPublicShape'>;
+export type ScoutEngine = Pick<Store, 'peekFilter' | 'toPublicShape' | 'vocab'>;
 
 export interface ScoutBrief {
   /** Short French label the theatre shows, e.g. "villages du Luberon". */
@@ -33,6 +34,8 @@ export interface ScoutFinding {
   readonly url: string;
   /** Catalogue photo (myprovence.fr), fuels the mission hero collage. */
   readonly img: string | null;
+  /** Pictogram for the flag (see lib/glyphs). */
+  readonly glyph: string;
   readonly lat: number | null;
   readonly lng: number | null;
   readonly summary: string;
@@ -132,6 +135,7 @@ export function runMission(
         town: pub.town,
         url: pub.url,
         img: pub.image,
+        glyph: pickGlyph(p, store.vocab),
         lat: pub.lat,
         lng: pub.lng,
         summary: pub.summary,

@@ -49,6 +49,7 @@ function fixtureEngine(): ScoutEngine {
       return { total, indices: [...indices], places: indices.map((i) => catalog.places[i]!) };
     },
     toPublicShape: (p: Place) => toPublicShape(p, vocab, indexes.aliasToCanonical),
+    vocab,
   };
 }
 
