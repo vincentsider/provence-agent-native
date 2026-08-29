@@ -80,3 +80,39 @@ describe('remote MCP find_tonight', () => {
     expect(data.events.map((e) => e.name)).toContain('Exposition permanente');
   });
 });
+
+describe('remote MCP find_tonight around a town (centroid semantics)', () => {
+  function sc2(): ServerCatalog {
+    const vocab: Vocab = { version: 1, tags: {}, towns: ['Marseille'] };
+    // NOTE: the shared event() helper gives every record town index 0, so
+    // FARAWAY drags the centroid north-east (~27 km from the coast trio,
+    // ~80 km from FARAWAY itself). The radius below splits those two.
+    const anchor = event(9, 'Ancre', '2026-01-01', '2026-12-31', 43.30, 5.37);
+    const catalog: Catalog = { version: 1, places: [anchor, PERMANENT, CONCERT, FARAWAY] };
+    return { catalog, vocab, indexes: buildIndexes(catalog, vocab), generatedAt: 'x' };
+  }
+
+  it('town + radius means "the area around", distance-sorted, far events excluded', async () => {
+    const reply = (await handleMcpMessage(
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'find_tonight',
+          arguments: { date: '2026-08-29', town: 'marseille', radius_km: 35 },
+        },
+      },
+      sc2(),
+    )) as { result: { content: Array<{ text: string }> } };
+    const data = JSON.parse(reply.result.content[0]!.text) as {
+      center: { lat: number } | null;
+      events: Array<{ name: string; distance_km: number | null }>;
+    };
+    expect(data.center).not.toBeNull();
+    const names = data.events.map((e) => e.name);
+    expect(names).toContain('Concert du soir');
+    expect(names).not.toContain('Concert lointain');
+    expect(data.events[0]!.distance_km).not.toBeNull();
+  });
+});

@@ -20,6 +20,7 @@ import { getViewportStore } from '@/lib/viewport';
 import { getScoutStore, MAX_FINDINGS, type Mission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { fold } from '@/lib/types';
+import { townCentroids } from '@/lib/centroids';
 import { useTranslations } from 'next-intl';
 import 'leaflet/dist/leaflet.css';
 
@@ -120,6 +121,27 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     map.setView([view.center.lat, view.center.lng], view.zoom, { animate: true });
   }, [view.center.lat, view.center.lng, view.zoom]);
 
+  // One-shot camera frames (store.frameHighlighted): Leaflet picks the
+  // optimal zoom via fitBounds; a zero-area frame (single point) gets a
+  // sane town-level zoom through maxZoom.
+  useEffect(() => {
+    const map = mapRef.current;
+    const frame = view.frame;
+    if (!map || !frame || !mapReady) return;
+    void (async () => {
+      const L = (await import('leaflet')).default;
+      if (!mapRef.current) return;
+      map.fitBounds(
+        L.latLngBounds(
+          [frame.south, frame.west],
+          [frame.north, frame.east],
+        ),
+        { padding: [60, 60], maxZoom: 13, animate: true },
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.frame?.seq, mapReady]);
+
   const placePing = (kind: PingKind) => {
     if (!wheel) return;
     getSignalsLog().addPing(kind, wheel.lat, wheel.lng);
@@ -218,7 +240,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         // Findings without coordinates flag at their town centroid, like the
         // marker layer (field bug 29 Aug: region wishes produced invisible
         // scouts because agenda records often carry no GPS point).
-        const centroids = townCentroids(store);
+        const centroids = townCentroids(store.catalog, store.vocab);
         const spotOf = (
           f: Mission['reports'][number]['findings'][number],
         ): { lat: number; lng: number } | null => {
@@ -389,7 +411,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         if (mine !== epoch) return;
         layer.clearLayers();
         // Town centroid: mean of the catalogue's own coordinates, memoized.
-        const centroids = townCentroids(store);
+        const centroids = townCentroids(store.catalog, store.vocab);
         const max = Math.max(1, ...data.towns.map((t) => t.count));
         for (const t of data.towns) {
           const c = centroids.get(fold(t.town));
@@ -469,7 +491,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       // the map): a record without coordinates but with a town pins at the
       // town centroid, hollow-styled and labelled approximate, with a small
       // deterministic offset so stacked townmates stay distinguishable.
-      const centroids = townCentroids(store);
+      const centroids = townCentroids(store.catalog, store.vocab);
       const coordsOf = (p: (typeof places)[number]): { lat: number; lng: number; approx: boolean } | null => {
         if (p.lat !== null && p.lng !== null) return { lat: p.lat, lng: p.lng, approx: false };
         const town = p.t >= 0 ? store.vocab.towns[p.t] : undefined;
@@ -586,24 +608,3 @@ function escapeAttr(s: string): string {
 }
 
 /** Mean coordinates per folded town name, computed once per catalogue. */
-const centroidCache = new WeakMap<object, Map<string, { lat: number; lng: number }>>();
-function townCentroids(store: Store): Map<string, { lat: number; lng: number }> {
-  const key = store.catalog;
-  const cached = centroidCache.get(key);
-  if (cached) return cached;
-  const sums = new Map<string, { lat: number; lng: number; n: number }>();
-  store.catalog.places.forEach((p) => {
-    if (p.lat === null || p.lng === null || p.t < 0) return;
-    const town = fold(store.vocab.towns[p.t] ?? '');
-    if (!town) return;
-    const e = sums.get(town) ?? { lat: 0, lng: 0, n: 0 };
-    e.lat += p.lat;
-    e.lng += p.lng;
-    e.n += 1;
-    sums.set(town, e);
-  });
-  const out = new Map<string, { lat: number; lng: number }>();
-  for (const [town, e] of sums) out.set(town, { lat: e.lat / e.n, lng: e.lng / e.n });
-  centroidCache.set(key, out);
-  return out;
-}

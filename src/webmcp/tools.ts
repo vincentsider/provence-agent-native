@@ -26,6 +26,7 @@ import { getSignalsLog } from '@/lib/signals';
 import { getPulseStore } from '@/lib/pulse-client';
 import type { PulseData } from '@/lib/demand-pulse';
 import { selectTonight } from '@/lib/tonight';
+import { townCentroids } from '@/lib/centroids';
 import { getScoutStore, runMission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { getViewportStore } from '@/lib/viewport';
@@ -593,6 +594,7 @@ function defs(): ToolDef[] {
       untrusted: false,
       handler: (input: z.output<typeof highlightPlacesInput>, store) => {
         const matched = store.setHighlightedIds(input.ids, 'agent');
+        store.frameHighlighted();
         return { total: matched, data: { requested: input.ids.length, highlighted: matched } };
       },
     }),
@@ -743,13 +745,23 @@ function defs(): ToolDef[] {
         const date = input.date ?? localDay();
         const radius = input.radius_km ?? 15;
         const limit = input.limit ?? 12;
-        // Where is "near"? Explicit coordinates, else a named town (the
-        // filter handles it), else the center of what the human is looking at.
+        // Where is "near"? Explicit coordinates, else the named town's
+        // centroid ("around Aix, within 10 km" means the area, not the
+        // administrative boundary — field report 29 Aug), else the center
+        // of what the human is looking at.
         let center: { lat: number; lng: number } | null =
           input.lat !== undefined && input.lng !== undefined
             ? { lat: input.lat, lng: input.lng }
             : null;
-        if (!center && input.town === undefined) {
+        let townFilter = input.town;
+        if (!center && input.town !== undefined) {
+          const c = townCentroids(store.catalog, store.vocab).get(fold(input.town));
+          if (c) {
+            center = c;
+            townFilter = undefined; // the radius replaces the boundary
+          }
+        }
+        if (!center && townFilter === undefined) {
           center = store.getView().center;
         }
         // 800-candidate pool: a big town's day overlaps hundreds of
@@ -757,7 +769,7 @@ function defs(): ToolDef[] {
         // the ranker exists to surface (audit pass 7).
         const { places } = store.peekFilter({
           cluster: 'agenda',
-          town: input.town,
+          town: townFilter,
           from: date,
           to: date,
           limit: 800,
@@ -768,7 +780,9 @@ function defs(): ToolDef[] {
           distance_km: pick.distanceKm,
         }));
         store.setHighlightedIds(shaped.map((e) => e.id), 'agent');
-        if (center) store.setView(center, 12, 'agent');
+        // The camera frames what was found; a result off-screen is a result
+        // that does not exist for the visitor.
+        store.frameHighlighted();
         return {
           total: shaped.length,
           data: {

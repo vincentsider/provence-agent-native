@@ -33,6 +33,7 @@ import {
 import { listVocabulary } from './vocab';
 import { toPublicShape } from './public-shape';
 import { selectTonight } from './tonight';
+import { townCentroids } from './centroids';
 import { CANONICAL_HOST, CLUSTERS, categoryOf, fold } from './types';
 import type { ServerCatalog } from './server-catalog';
 import type { PulseData } from './demand-pulse';
@@ -142,11 +143,19 @@ const TOOLS: McpTool[] = [
       const date = v.date ?? new Date().toISOString().slice(0, 10);
       const radius = v.radius_km ?? 15;
       const limit = v.limit ?? 12;
-      const center =
+      let center =
         v.lat !== undefined && v.lng !== undefined ? { lat: v.lat, lng: v.lng } : null;
+      let townFilter = v.town;
+      if (!center && v.town !== undefined) {
+        const c = townCentroids(sc.catalog, sc.vocab).get(fold(v.town));
+        if (c) {
+          center = c;
+          townFilter = undefined; // "around Aix" means the area, not the boundary
+        }
+      }
       const { indices } = runFilter(sc.catalog, sc.indexes, {
         cluster: 'agenda',
-        town: v.town,
+        town: townFilter,
         from: date,
         to: date,
         limit: 800,

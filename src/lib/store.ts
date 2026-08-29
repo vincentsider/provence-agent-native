@@ -9,6 +9,8 @@
 
 import { aliasIds } from './vocab';
 import { toPublicShape } from './public-shape';
+import { townCentroids } from './centroids';
+import { fold } from './types';
 import {
   buildIndexes,
   clusterScope,
@@ -32,6 +34,9 @@ import {
 export interface ViewState {
   readonly center: { lat: number; lng: number };
   readonly zoom: number;
+  /** One-shot camera frame request (bounds + seq); the map consumes it via
+   *  fitBounds so Leaflet picks the optimal zoom, not us. */
+  readonly frame: { north: number; south: number; east: number; west: number; seq: number } | null;
   /** Record indices currently highlighted on map + list. */
   readonly highlighted: readonly number[];
   /** Who last drove the view; the UI badges agent-driven changes. */
@@ -45,6 +50,7 @@ export interface ViewState {
 const INITIAL_VIEW: ViewState = {
   center: { lat: 43.45, lng: 5.35 }, // Bouches-du-Rhône
   zoom: 9,
+  frame: null,
   highlighted: [],
   lastActor: null,
   total: 0,
@@ -209,6 +215,38 @@ export class Store {
 
   setView(center: { lat: number; lng: number }, zoom: number, actor: 'human' | 'agent'): void {
     this.#patch({ center, zoom, lastActor: actor });
+  }
+
+  /** Frame the camera on the highlighted records (town-centroid fallback
+   *  for coordinate-less events): an agent result the human cannot see is
+   *  a result that does not exist (field report, 29 Aug). */
+  frameHighlighted(): void {
+    const centroids = townCentroids(this.#catalog, this.#vocab);
+    let north = -90;
+    let south = 90;
+    let east = -180;
+    let west = 180;
+    let n = 0;
+    for (const i of this.#view.highlighted) {
+      const p = this.#catalog.places[i];
+      if (!p) continue;
+      let lat = p.lat;
+      let lng = p.lng;
+      if (lat === null || lng === null) {
+        const c = p.t >= 0 ? centroids.get(fold(this.#vocab.towns[p.t] ?? '')) : undefined;
+        if (!c) continue;
+        lat = c.lat;
+        lng = c.lng;
+      }
+      north = Math.max(north, lat);
+      south = Math.min(south, lat);
+      east = Math.max(east, lng);
+      west = Math.min(west, lng);
+      n += 1;
+    }
+    if (n === 0) return;
+    const seq = (this.#view.frame?.seq ?? 0) + 1;
+    this.#patch({ frame: { north, south, east, west, seq } });
   }
 
   setHighlightedIds(ids: readonly number[], actor: 'human' | 'agent'): number {
