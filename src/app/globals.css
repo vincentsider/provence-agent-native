@@ -103,3 +103,91 @@
 @media (prefers-reduced-motion: reduce) {
   .demand-pulse { animation: none; }
 }
+
+/* --- Les éclaireurs (v3, issue #612) --- */
+
+/* Scout bodies glide between findings: Leaflet positions markers with a
+   transform, so one transition line is the whole animation. */
+.leaflet-marker-icon.scout-body {
+  transition: transform 1200ms cubic-bezier(0.3, 0.85, 0.35, 1);
+  background: transparent;
+  border: none;
+  overflow: visible;
+}
+.scout-nib {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: var(--tint, #002731);
+  clip-path: polygon(15% 100%, 60% 15%, 85% 40%, 35% 100%);
+  filter: drop-shadow(0 1px 1px rgba(0, 39, 49, 0.4));
+}
+.scout-tag {
+  position: absolute;
+  left: 16px;
+  top: -2px;
+  white-space: nowrap;
+  background: #fffdf5;
+  color: #002731;
+  border: 1px solid rgba(0, 39, 49, 0.25);
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: var(--font-slab), Georgia, serif;
+}
+
+.scout-flag-wrap { background: transparent; border: none; overflow: visible; }
+.scout-flag {
+  display: block;
+  width: 6px;
+  height: 22px;
+  background: rgba(0, 39, 49, 0.85);
+  position: relative;
+  cursor: pointer;
+}
+.scout-flag::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 14px;
+  height: 10px;
+  background: var(--tint, #ee6e62);
+  animation: scout-flag-in 300ms ease-out;
+}
+.scout-flag-wrap--kept .scout-flag::after { background: #ffe500; }
+.scout-flag-wrap--kept .scout-flag::before {
+  content: '✓';
+  position: absolute;
+  left: 5px;
+  top: -3px;
+  z-index: 1;
+  font-size: 9px;
+  color: #002731;
+}
+@keyframes scout-flag-in {
+  from { transform: scaleX(0); transform-origin: left; }
+  to { transform: scaleX(1); }
+}
+
+.scout-popup { font-family: var(--font-slab), Georgia, serif; min-width: 180px; }
+.scout-popup-title { font-weight: 700; color: #002731; margin: 0 0 2px; }
+.scout-popup-line { font-size: 12px; color: #434343; margin: 0 0 8px; }
+.scout-popup-row { display: flex; gap: 6px; }
+.scout-popup-keep,
+.scout-popup-dismiss {
+  font-family: var(--font-display), 'Arial Black', sans-serif;
+  text-transform: uppercase;
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 2px solid #002731;
+  cursor: pointer;
+}
+.scout-popup-keep { background: #ffe500; color: #002731; }
+.scout-popup-keep:hover { background: #002731; color: #ffe500; }
+.scout-popup-dismiss { background: #fff; color: #002731; }
+.scout-popup-dismiss:hover { background: #ee6e62; color: #fff; border-color: #ee6e62; }
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-marker-icon.scout-body { transition: none; }
+  .scout-flag::after { animation: none; }
+}

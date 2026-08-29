@@ -101,14 +101,19 @@ describe('registerAll resilience', () => {
           'filter_places',
           'find_events',
           'find_near',
+          'find_tonight',
           'get_agent_demand',
           'get_catalog_stats',
           'get_demand_pulse',
           'get_input_result',
           'get_place',
+          'get_scout_reports',
           'get_visitor_signals',
+          'get_visitor_view',
           'highlight_places',
+          'send_scouts',
           'set_view',
+          'write_postcard',
         ].sort(),
       );
       expect(seen).toHaveLength(TOOL_COUNT);
@@ -122,6 +127,7 @@ describe('registerAll resilience', () => {
         'ask_visitor',
         'highlight_places',
         'set_view',
+        'write_postcard',
       ]);
     });
   });

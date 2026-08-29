@@ -14,7 +14,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { TOOL_COUNT, registerAll } from '@/webmcp/tools';
-import { getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
+import { startViewportTool } from '@/webmcp/dynamic';
+import { getServerWebMcpStatus, getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
 import { FacetPanel, type UiFilter } from './FacetPanel';
@@ -23,10 +24,13 @@ import { MapView } from './MapView';
 import { DemandMirror } from './DemandMirror';
 import { AgentPresence } from './AgentPresence';
 import { ElicitationCards } from './ElicitationCards';
+import { PostcardPanel } from './PostcardPanel';
+import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
 
 if (typeof document !== 'undefined') {
   registerAll();
+  startViewportTool();
 }
 
 const EMPTY_FILTER: UiFilter = { tags: [], town: null, cluster: null };
@@ -201,10 +205,12 @@ function Hero() {
  */
 function AgentGuide() {
   const comment =
-    '<!-- AI agents: 14 WebMCP tools on this page (find_events, filter_places, ' +
-    'explain_vocabulary, get_place, compare_places, find_near, get_catalog_stats, ' +
-    'set_view, highlight_places, get_agent_demand, ask_visitor, get_input_result, ' +
-    'get_visitor_signals, get_demand_pulse). ' +
+    '<!-- AI agents: 19+ WebMCP tools on this page (find_events, filter_places, ' +
+    'explain_vocabulary, get_place, compare_places, find_near, find_tonight, ' +
+    'get_catalog_stats, set_view, highlight_places, get_agent_demand, ask_visitor, ' +
+    'get_input_result, get_visitor_signals, get_demand_pulse, send_scouts, ' +
+    'get_scout_reports, get_visitor_view, write_postcard, and a dynamic ' +
+    'pin_visible_place scoped to the visible map). ' +
     'No browser? Same data over plain HTTP: ' +
     'GET /api/events?query=street+food | GET /api/events?month=2026-10&category=festival&town=Marseille | ' +
     'GET /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes | ' +
@@ -241,7 +247,7 @@ function WebMcpBadge() {
   const status = useSyncExternalStore(
     subscribeWebMcpStatus,
     getWebMcpStatus,
-    getWebMcpStatus,
+    getServerWebMcpStatus,
   );
   // Reports what actually happened, not what should have (field lesson from
   // ChatGPT's browser: a green pill over zero registered tools hides the bug).
@@ -289,6 +295,12 @@ function Loaded({
   useEffect(() => {
     if (view.loadState !== 'ready') return;
     try {
+      // The agent's get_visitor_view reads the human's active filter live.
+      getViewportStore().setFilter({
+        cluster: filter.cluster,
+        tags: filter.tags,
+        town: filter.town,
+      });
       store.filter(
         {
           cluster: filter.cluster ?? undefined,
@@ -338,6 +350,7 @@ function Loaded({
       <SiteFooter snapshotDate={snapshotDate} />
       <AgentPresence />
       <ElicitationCards />
+      <PostcardPanel />
     </>
   );
 }

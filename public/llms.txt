@@ -21,10 +21,19 @@
 
 - /agenda — server-rendered next-90-days agenda (no JavaScript needed)
 - /fr and /en — the full catalogue browser; in a WebMCP-capable browser it
-  exposes 14 site tools (find_events, filter_places, explain_vocabulary,
-  get_place, compare_places, find_near, get_catalog_stats, set_view,
-  highlight_places, get_agent_demand, ask_visitor, get_input_result,
-  get_visitor_signals, get_demand_pulse) over the same shared view.
+  exposes 19+ site tools (find_events, filter_places, explain_vocabulary,
+  get_place, compare_places, find_near, find_tonight, get_catalog_stats,
+  set_view, highlight_places, get_agent_demand, ask_visitor,
+  get_input_result, get_visitor_signals, get_demand_pulse, send_scouts,
+  get_scout_reports, get_visitor_view, write_postcard, plus a dynamic
+  pin_visible_place whose schema lists only what is on the visitor's
+  screen) over the same shared view.
+  send_scouts turns one fuzzy desire into 2-4 scout searches that fan out
+  visibly across the map and plant flags the visitor keeps or dismisses;
+  find_tonight answers "what is happening tonight near me" from real dated
+  events; get_visitor_view returns the viewport, filters and selection the
+  visitor currently has in front of them; write_postcard composes the
+  closing keepsake from their kept selection only.
   ask_visitor lets you put a question card in front of the visitor;
   get_visitor_signals returns the pins, locks and answers they gave back;
   get_demand_pulse returns 7-day agent demand aggregated by town.

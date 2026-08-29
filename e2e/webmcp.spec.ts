@@ -124,7 +124,7 @@ test.describe('webmcp tools', () => {
       async () => {
         const mc = (document as never as { modelContext: { getTools(): Promise<unknown[]> } })
           .modelContext;
-        return (await mc.getTools()).length >= 14;
+        return (await mc.getTools()).length >= 19;
       },
       { timeout: 5_000 },
     );
@@ -251,7 +251,7 @@ test.describe('gesture dialogue', () => {
     };
     await page.waitForFunction(
       async () =>
-        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 14,
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
       { timeout: 5_000 },
     );
 
@@ -307,5 +307,177 @@ test.describe('demand pulse endpoint', () => {
     expect(body.windowDays).toBe(7);
     expect(typeof body.totalRequests).toBe('number');
     expect(Array.isArray(body.towns)).toBe(true);
+  });
+});
+
+/**
+ * v3 (issues #612-#616): scouts fan out and plant flags, the human's verdict
+ * reaches get_scout_reports, the postcard refuses then displays, and the
+ * agent can read what the visitor is looking at.
+ */
+test.describe('v3 scouts and keepsake', () => {
+  test('the full loop: scouts → human keeps a flag → reports → postcard', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+
+    type Mc = {
+      getTools(): Promise<Array<{ name: string; inputSchema?: object }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    const call = (name: string, input: object) =>
+      page.evaluate(
+        async ([toolName, toolInput]) => {
+          const mc = (document as never as { modelContext: Mc }).modelContext;
+          const tools = await mc.getTools();
+          const tool = tools.find((x) => x.name === toolName);
+          if (!tool) throw new Error(`${toolName} not registered`);
+          return JSON.parse(await mc.executeTool(tool, JSON.stringify(toolInput))) as {
+            data?: Record<string, unknown> & { error?: string };
+            error?: { code: string };
+          };
+        },
+        [name, input] as const,
+      );
+
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
+      { timeout: 5_000 },
+    );
+
+    // Postcard refuses while nothing is kept.
+    const refused = await call('write_postcard', {
+      title: 'Trois jours à Cassis',
+      body: 'Ce matin, le port sentait le café et le sel. '.repeat(2),
+    });
+    expect(refused.data?.error).toBe('empty_selection');
+
+    // Scouts out.
+    const sent = await call('send_scouts', {
+      mission: 'un séjour à Cassis, hôtel et un marché',
+      scouts: [
+        { label: 'hôtels à Cassis', town: 'Cassis', cluster: 'hotels' },
+        { label: "l'agenda de Cassis", town: 'Cassis', cluster: 'agenda' },
+      ],
+    });
+    const reports = sent.data?.reports as Array<{ findings: unknown[] }>;
+    expect(reports).toHaveLength(2);
+    expect(reports[0]!.findings.length).toBeGreaterThan(0);
+
+    // A flag lands on the map; the human keeps it.
+    const flag = page.locator('.scout-flag-wrap').first();
+    await flag.waitFor({ state: 'visible', timeout: 10_000 });
+    await flag.click();
+    await page.locator('.scout-popup-keep').click();
+
+    const verdicts = await call('get_scout_reports', {});
+    const kept = JSON.stringify(verdicts.data).includes('"kept"');
+    expect(kept).toBe(true);
+
+    // The postcard now displays, grounded in the kept selection.
+    const card = await call('write_postcard', {
+      title: 'Trois jours à Cassis',
+      body: 'Ce matin, le port sentait le café et le sel. Ce soir, le marché nocturne. '.repeat(1).padEnd(60, '.'),
+    });
+    expect(card.data?.status).toBe('displayed');
+    await expect(page.getByTestId('postcard')).toBeVisible();
+    await page.getByTestId('postcard-close').click();
+  });
+
+  test('get_visitor_view reports the live viewport and find_tonight answers the day', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+
+    type Mc = {
+      getTools(): Promise<Array<{ name: string }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    const call = (name: string, input: object) =>
+      page.evaluate(
+        async ([toolName, toolInput]) => {
+          const mc = (document as never as { modelContext: Mc }).modelContext;
+          const tools = await mc.getTools();
+          const tool = tools.find((x) => x.name === toolName);
+          if (!tool) throw new Error(`${toolName} not registered`);
+          return JSON.parse(await mc.executeTool(tool, JSON.stringify(toolInput))) as {
+            data?: Record<string, unknown>;
+          };
+        },
+        [name, input] as const,
+      );
+
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 19,
+      { timeout: 5_000 },
+    );
+    // The map publishes its viewport within the 300ms debounce.
+    await page.waitForTimeout(600);
+
+    const view = await call('get_visitor_view', {});
+    expect(view.data?.viewport).not.toBeNull();
+    expect(view.data?.humanFilter).toMatchObject({ cluster: null });
+
+    const tonight = await call('find_tonight', {});
+    expect(typeof view.data).toBe('object');
+    expect(tonight.data?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Array.isArray(tonight.data?.events)).toBe(true);
+  });
+
+  test('pin_visible_place exists and only accepts what is on screen', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+
+    type Mc = {
+      getTools(): Promise<Array<{ name: string; inputSchema?: { properties?: { name?: { enum?: string[] } } } }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    // Registered lazily (800ms debounce after the catalogue and map settle).
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).some(
+          (t) => t.name === 'pin_visible_place',
+        ),
+      { timeout: 15_000 },
+    );
+    const result = await page.evaluate(async () => {
+      const mc = (document as never as { modelContext: Mc }).modelContext;
+      // The tool is re-registered on view changes (abort + register): between
+      // the two calls it can be absent for a beat. A real agent re-reads the
+      // tool list each turn; retry the same way.
+      let tool: Awaited<ReturnType<Mc['getTools']>>[number] | undefined;
+      for (let attempt = 0; attempt < 20 && !tool; attempt++) {
+        tool = (await mc.getTools()).find((x) => x.name === 'pin_visible_place');
+        if (!tool) await new Promise((r) => setTimeout(r, 250));
+      }
+      if (!tool) return { skipped: true };
+      const names = tool.inputSchema?.properties?.name?.enum ?? [];
+      const first = names[0];
+      if (!first) return { skipped: true };
+      const pinned = JSON.parse(
+        await mc.executeTool(tool, JSON.stringify({ name: first })),
+      ) as { data?: { pinned?: { name?: string } } };
+      const rejected = JSON.parse(
+        await mc.executeTool(tool, JSON.stringify({ name: 'Lieu Qui N Existe Pas 123' })),
+      ) as { error?: { code?: string }; data?: { error?: string } };
+      return { first, pinned, rejected };
+    });
+    if (!('skipped' in result)) {
+      expect(result.pinned?.data?.pinned?.name).toBe(result.first);
+      // Off-screen name: either schema-invalid (enum) or a structured refusal.
+      const refusal =
+        result.rejected?.error?.code === 'invalid_input' ||
+        result.rejected?.data?.error === 'not_visible';
+      expect(refusal).toBe(true);
+    }
   });
 });

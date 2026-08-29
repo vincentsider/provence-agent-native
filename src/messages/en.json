@@ -54,5 +54,17 @@
   "upcoming": {
     "title": "Coming up in the agenda",
     "all": "Full agenda"
+  },
+  "scouts": {
+    "keep": "Keep",
+    "dismiss": "Dismiss"
+  },
+  "postcard": {
+    "aria": "Postcard from your future trip",
+    "from": "Day {day} of your trip",
+    "facts": "Your picks (real places, real dates)",
+    "copy": "Copy",
+    "print": "Print",
+    "close": "Close"
   }
 }

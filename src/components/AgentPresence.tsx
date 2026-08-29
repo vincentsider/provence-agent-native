@@ -154,7 +154,12 @@ export function AgentPresence() {
       // Answering a question or dropping a ping is COLLABORATION, not a
       // takeover: those taps must not retire the body.
       const target = ev.target as Element | null;
-      if (target?.closest('[data-testid="elicitation-cards"],[data-testid="ping-wheel"]')) return;
+      if (
+        target?.closest(
+          '[data-testid="elicitation-cards"],[data-testid="ping-wheel"],.leaflet-popup,.scout-flag-wrap,[data-testid="postcard"]',
+        )
+      )
+        return;
       if (activeRef.current) {
         bus.emit({ phase: 'yield' });
         try {

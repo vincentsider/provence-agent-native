@@ -145,6 +145,15 @@ export class Store {
 
   // ---- queries (used by both UI and tools) ---------------------------------
 
+  /** Run a filter WITHOUT touching the shared view: the scouts (v3, issue
+   *  #612) and find_tonight run several searches per call and must not
+   *  stomp what the human is looking at between them. */
+  peekFilter(input: FilterInput): { total: number; places: Place[]; indices: number[] } {
+    const idx = this.#requireIndexes();
+    const { total, indices } = runFilter(this.#catalog, idx, input);
+    return { total, places: indices.map((i) => this.#catalog.places[i]!), indices: [...indices] };
+  }
+
   filter(input: FilterInput, actor: 'human' | 'agent'): {
     total: number;
     places: Place[];

@@ -16,7 +16,11 @@ import type { Store, ViewState } from '@/lib/store';
 import { getPresenceBus } from '@/lib/presence';
 import { getSignalsLog, type PingKind } from '@/lib/signals';
 import { getPulseStore } from '@/lib/pulse-client';
+import { getViewportStore } from '@/lib/viewport';
+import { getScoutStore, type Mission } from '@/lib/scouts';
+import { getShortlistStore } from '@/lib/shortlist';
 import { fold } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 import 'leaflet/dist/leaflet.css';
 
 const MARKER_CAP = 400;
@@ -27,6 +31,10 @@ const TILE_ATTRIBUTION =
 const CORAL = '#EE6E62';
 const PETROL = '#002731';
 const YELLOW = '#FFE500';
+/** One tint per scout body; brand family, distinct at a glance. */
+const SCOUT_TINTS = [PETROL, CORAL, '#E63521', '#7A6A00'] as const;
+
+
 
 export function MapView({ store, view }: { store: Store; view: ViewState }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,10 +50,13 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   );
   const pingLayerRef = useRef<LayerGroup | null>(null);
   const pulseLayerRef = useRef<LayerGroup | null>(null);
+  const scoutLayerRef = useRef<LayerGroup | null>(null);
+  const t = useTranslations('scouts');
 
   // Create once, destroy on unmount.
   useEffect(() => {
     let cancelled = false;
+    let viewportTimer: ReturnType<typeof setTimeout> | null = null;
     void (async () => {
       const L = (await import('leaflet')).default;
       if (cancelled || !containerRef.current || mapRef.current) return;
@@ -58,6 +69,26 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       markersRef.current = L.layerGroup().addTo(map);
       pingLayerRef.current = L.layerGroup().addTo(map);
       pulseLayerRef.current = L.layerGroup().addTo(map);
+      scoutLayerRef.current = L.layerGroup().addTo(map);
+      // Publish what the human is looking at (v3, issue #614). Debounced:
+      // moveend fires once per gesture, but zoom + pan chains still cluster.
+      const publishViewport = () => {
+        if (viewportTimer) clearTimeout(viewportTimer);
+        viewportTimer = setTimeout(() => {
+          const b = map.getBounds();
+          getViewportStore().setBounds(
+            {
+              north: b.getNorth(),
+              south: b.getSouth(),
+              east: b.getEast(),
+              west: b.getWest(),
+            },
+            map.getZoom(),
+          );
+        }, 300);
+      };
+      map.on('moveend zoomend', publishViewport);
+      publishViewport();
       map.on('contextmenu', (ev) => {
         const e = ev as { latlng: { lat: number; lng: number }; containerPoint: { x: number; y: number } };
         setWheel({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng });
@@ -67,12 +98,15 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     })();
     return () => {
       cancelled = true;
+      if (viewportTimer) clearTimeout(viewportTimer);
       markersRef.current?.clearLayers();
       markersRef.current = null;
       pingLayerRef.current?.clearLayers();
       pingLayerRef.current = null;
       pulseLayerRef.current?.clearLayers();
       pulseLayerRef.current = null;
+      scoutLayerRef.current?.clearLayers();
+      scoutLayerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -139,6 +173,149 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Les éclaireurs (v3, issue #612): scout bodies fan out to their findings,
+  // plant evidence flags, and retire. Flags open a keep/dismiss popup; a
+  // verdict updates the mission store and (kept) the shortlist. Leak posture:
+  // every timeout is in one array cleared on new mission and unmount; the
+  // scout layer is a single LayerGroup cleared, never re-created; movement
+  // is CSS transition on the marker element (no rAF at all).
+  const keepLabel = t('keep');
+  const dismissLabel = t('dismiss');
+  useEffect(() => {
+    if (!mapReady) return;
+    const scoutStore = getScoutStore();
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+    let epoch = 0;
+    let lastMissionId: string | null = null;
+    const reduced =
+      typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const clearTimers = () => {
+      for (const timer of timers) clearTimeout(timer);
+      timers.length = 0;
+    };
+
+    const play = () => {
+      const mission = scoutStore.getSnapshot();
+      const layer = scoutLayerRef.current;
+      const map = mapRef.current;
+      if (!mission || !layer || !map || mission.missionId === lastMissionId) return;
+      lastMissionId = mission.missionId;
+      const mine = ++epoch;
+      clearTimers();
+      void (async () => {
+        const L = (await import('leaflet')).default;
+        if (mine !== epoch || !mapRef.current) return;
+        layer.clearLayers();
+        const origin = map.getCenter();
+
+        const plantFlag = (f: Mission['reports'][number]['findings'][number], tint: string) => {
+          if (f.lat === null || f.lng === null) return;
+          const flag = L.marker([f.lat, f.lng], {
+            icon: L.divIcon({
+              className: 'scout-flag-wrap',
+              html: `<span class="scout-flag" style="--tint:${tint}"></span>`,
+              iconAnchor: [3, 22],
+            }),
+          }).addTo(layer);
+          // Popup content is BUILT, never innerHTML'd: names are catalogue
+          // text headed for the DOM, textContent keeps them inert.
+          const content = document.createElement('div');
+          content.className = 'scout-popup';
+          const title = document.createElement('p');
+          title.className = 'scout-popup-title';
+          title.textContent = f.name;
+          const line = document.createElement('p');
+          line.className = 'scout-popup-line';
+          line.textContent = [f.town, f.d1 ?? f.upcoming?.date].filter(Boolean).join(' · ');
+          const row = document.createElement('div');
+          row.className = 'scout-popup-row';
+          const keep = document.createElement('button');
+          keep.type = 'button';
+          keep.textContent = keepLabel;
+          keep.className = 'scout-popup-keep';
+          const dismiss = document.createElement('button');
+          dismiss.type = 'button';
+          dismiss.textContent = dismissLabel;
+          dismiss.className = 'scout-popup-dismiss';
+          keep.addEventListener('click', () => {
+            scoutStore.setVerdict(f.id, 'kept');
+            getShortlistStore().keep({
+              id: f.id,
+              name: f.name,
+              town: f.town ?? '',
+              url: f.url,
+              d1: f.d1,
+              d2: f.d2,
+            });
+            flag.getElement()?.classList.add('scout-flag-wrap--kept');
+            flag.closePopup();
+          });
+          dismiss.addEventListener('click', () => {
+            scoutStore.setVerdict(f.id, 'dismissed');
+            getShortlistStore().remove(f.id);
+            flag.closePopup();
+            layer.removeLayer(flag);
+          });
+          row.append(keep, dismiss);
+          content.append(title, line, row);
+          flag.bindPopup(content, { closeButton: false, offset: [8, -18] });
+        };
+
+        mission.reports.forEach((report, i) => {
+          const stops = report.findings.filter((f) => f.lat !== null && f.lng !== null);
+          if (stops.length === 0) return;
+          const tint = SCOUT_TINTS[i % SCOUT_TINTS.length]!;
+          if (reduced) {
+            for (const f of stops) plantFlag(f, tint);
+            return;
+          }
+          const body = L.marker(origin, {
+            interactive: false,
+            icon: L.divIcon({
+              className: 'scout-body',
+              html:
+                `<span class="scout-nib" style="--tint:${tint}"></span>` +
+                `<span class="scout-tag">${escapeHtml(report.label)}</span>`,
+              iconAnchor: [11, 11],
+            }),
+          }).addTo(layer);
+          stops.forEach((f, j) => {
+            timers.push(
+              setTimeout(() => {
+                if (mine !== epoch) return;
+                body.setLatLng([f.lat!, f.lng!]);
+                timers.push(
+                  setTimeout(() => {
+                    if (mine === epoch) plantFlag(f, tint);
+                  }, 900),
+                );
+              }, 400 + i * 350 + j * 1400),
+            );
+          });
+          timers.push(
+            setTimeout(
+              () => {
+                if (mine === epoch) layer.removeLayer(body);
+              },
+              400 + i * 350 + stops.length * 1400 + 1200,
+            ),
+          );
+        });
+      })();
+    };
+
+    const unsubscribe = scoutStore.subscribe(play);
+    play();
+    return () => {
+      epoch += 1;
+      clearTimers();
+      unsubscribe();
+      scoutLayerRef.current?.clearLayers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, keepLabel, dismissLabel]);
 
   // The demand pulse layer (issue #609): towns swell with real agent demand,
   // coral for served requests, bright yellow for the invisible demand

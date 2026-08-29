@@ -54,5 +54,17 @@
   "upcoming": {
     "title": "Prochainement à l'agenda",
     "all": "Tout l'agenda"
+  },
+  "scouts": {
+    "keep": "Garder",
+    "dismiss": "Écarter"
+  },
+  "postcard": {
+    "aria": "Carte postale de votre futur séjour",
+    "from": "Jour {day} de votre séjour",
+    "facts": "Vos choix (vrais lieux, vraies dates)",
+    "copy": "Copier",
+    "print": "Imprimer",
+    "close": "Fermer"
   }
 }

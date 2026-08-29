@@ -41,7 +41,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run build && npm run start',
     url: 'http://127.0.0.1:3040/fr',
-    reuseExistingServer: true,
+    // false: a leftover server from an earlier build serves stale chunks and
+    // fails the suite with phantom hydration errors (bitten 3 times).
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

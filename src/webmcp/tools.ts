@@ -25,9 +25,19 @@ import { getElicitationStore } from '@/lib/elicitation';
 import { getSignalsLog } from '@/lib/signals';
 import { getPulseStore } from '@/lib/pulse-client';
 import type { PulseData } from '@/lib/demand-pulse';
+import { haversineKm } from '@/lib/engine';
+import { getScoutStore, runMission } from '@/lib/scouts';
+import { getShortlistStore } from '@/lib/shortlist';
+import { getViewportStore } from '@/lib/viewport';
+import { getPostcardStore } from '@/lib/postcard';
 import { patchWebMcpStatus, recordRegistration } from './status';
 import {
   askVisitorInput,
+  sendScoutsInput,
+  getScoutReportsInput,
+  findTonightInput,
+  getVisitorViewInput,
+  writePostcardInput,
   comparePlacesInput,
   findEventsInput,
   getDemandPulseInput,
@@ -62,7 +72,7 @@ function neverAborted(): AbortSignal {
   return neverAbortedSignal;
 }
 
-function makeExecute<S extends z.ZodType>(
+export function makeExecute<S extends z.ZodType>(
   name: string,
   schema: S,
   handler: Handler<S>,
@@ -160,6 +170,12 @@ function makeExecute<S extends z.ZodType>(
       });
     }
   };
+}
+
+/** The visitor's own calendar day (their timezone, not UTC). */
+function localDay(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** "2026-10" -> ["2026-10-01", "2026-10-31"]; month lengths matter. */
@@ -617,6 +633,207 @@ function defs(): ToolDef[] {
       },
     }),
     tool({
+      name: 'send_scouts',
+      title: 'Envoyer les éclaireurs',
+      description:
+        "Turn ONE fuzzy visitor desire ('a quiet village with a market, near water') into " +
+        '2-4 scout searches that visibly fan out across the shared map, planting evidence ' +
+        'flags the visitor keeps or dismisses by tapping. Use DIFFERENT angles per scout ' +
+        '(different towns, tags, clusters). FRENCH search terms. Prefer this over several ' +
+        'filter_places calls whenever the visitor expresses a wish rather than a filter. ' +
+        'Returns every scout report immediately; the visitor then sorts the flags — call ' +
+        'get_scout_reports later to read their keep/dismiss verdicts.',
+      schema: sendScoutsInput,
+      readOnly: true,
+      untrusted: true,
+      handler: (input: z.output<typeof sendScoutsInput>, store) => {
+        const today = localDay();
+        const mission = runMission(store, input.mission, input.scouts, today);
+        getScoutStore().start(mission);
+        try {
+          getPresenceBus().emit({ phase: 'focus', target: 'map' });
+          getPresenceBus().emit({ phase: 'act', tool: 'send_scouts' });
+        } catch {
+          /* theatre only */
+        }
+        const found = mission.reports.reduce((n, r) => n + r.findings.length, 0);
+        return {
+          total: found,
+          data: {
+            mission: mission.mission,
+            reports: mission.reports.map((r) => ({
+              scoutId: r.scoutId,
+              label: r.label,
+              total: r.total,
+              findings: r.findings,
+            })),
+            instruction:
+              'The scouts are now travelling the map and planting flags. The visitor will ' +
+              'tap to keep or dismiss each one — keep helping, then call get_scout_reports ' +
+              'to read their verdicts before proposing anything final.',
+          },
+        };
+      },
+    }),
+    tool({
+      name: 'get_scout_reports',
+      title: 'Rapports des éclaireurs',
+      description:
+        "The last scout mission with the visitor's verdicts: kept (their decision, treat " +
+        'as fixed), dismissed (do not re-propose), pending (still deciding). Call this ' +
+        'before composing any plan or postcard.',
+      schema: getScoutReportsInput,
+      readOnly: true,
+      untrusted: false,
+      handler: () => {
+        const mission = getScoutStore().getSnapshot();
+        if (!mission) {
+          return { total: 0, data: { error: 'no_mission', message: 'No scouts sent yet.' } };
+        }
+        const kept = mission.reports.reduce(
+          (n, r) => n + Object.values(r.verdicts).filter((v) => v === 'kept').length,
+          0,
+        );
+        return { total: kept, data: mission };
+      },
+    }),
+    tool({
+      name: 'find_tonight',
+      title: 'Ce soir en Provence',
+      description:
+        "What is ACTUALLY happening tonight (or a given day) near the visitor: real dated " +
+        'events from the official agenda, sorted by distance when a town or coordinates ' +
+        'are given, else within the area the visitor is currently looking at. Use for ' +
+        '\"ce soir\", \"tonight\", \"que faire maintenant\", \"this weekend\" (call once per day). ' +
+        'Results carry distance_km and light up on the shared map.',
+      schema: findTonightInput,
+      readOnly: true,
+      untrusted: true,
+      handler: (input: z.output<typeof findTonightInput>, store) => {
+        const date = input.date ?? localDay();
+        const radius = input.radius_km ?? 15;
+        const limit = input.limit ?? 12;
+        // Where is "near"? Explicit coordinates, else a named town (the
+        // filter handles it), else the center of what the human is looking at.
+        let center: { lat: number; lng: number } | null =
+          input.lat !== undefined && input.lng !== undefined
+            ? { lat: input.lat, lng: input.lng }
+            : null;
+        if (!center && input.town === undefined) {
+          center = store.getView().center;
+        }
+        const { places } = store.peekFilter({
+          cluster: 'agenda',
+          town: input.town,
+          from: date,
+          to: date,
+          limit: 200,
+          offset: 0,
+        });
+        let shaped = places.map((p) => {
+          const pub = store.toPublicShape(p);
+          const distanceKm =
+            center && p.lat !== null && p.lng !== null
+              ? Math.round(haversineKm(center.lat, center.lng, p.lat, p.lng) * 10) / 10
+              : null;
+          return { ...pub, distance_km: distanceKm };
+        });
+        if (center) {
+          shaped = shaped
+            .filter((e) => e.distance_km === null || e.distance_km <= radius)
+            .sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
+        }
+        shaped = shaped.slice(0, limit);
+        store.setHighlightedIds(shaped.map((e) => e.id), 'agent');
+        if (center) store.setView(center, 12, 'agent');
+        return {
+          total: shaped.length,
+          data: {
+            date,
+            center,
+            radius_km: center ? radius : null,
+            events: shaped,
+            note:
+              shaped.length === 0
+                ? 'Nothing on this exact day in range. Widen radius_km or try the next days with find_events.'
+                : undefined,
+          },
+        };
+      },
+    }),
+    tool({
+      name: 'get_visitor_view',
+      title: 'Ce que le visiteur regarde',
+      description:
+        "The visitor's CURRENT context, live: map viewport, zoom, the filters they set by " +
+        'hand, their kept selection, and a sample of place names visible on their screen. ' +
+        'Call this FIRST when they say \"here\", \"around this\", \"what I\'m looking at\", or ' +
+        'before proposing anything, so your answer matches what is in front of them.',
+      schema: getVisitorViewInput,
+      readOnly: true,
+      untrusted: false,
+      handler: (_input, store) => {
+        const vp = getViewportStore().getSnapshot();
+        const view = store.getView();
+        const visible: string[] = [];
+        if (vp.bounds) {
+          const b = vp.bounds;
+          for (const i of view.highlighted) {
+            const p = store.catalog.places[i];
+            if (!p || p.lat === null || p.lng === null) continue;
+            if (p.lat <= b.north && p.lat >= b.south && p.lng <= b.east && p.lng >= b.west) {
+              visible.push(p.n);
+              if (visible.length >= 30) break;
+            }
+          }
+        }
+        return {
+          total: visible.length,
+          data: {
+            viewport: vp.bounds ? { ...vp.bounds, zoom: vp.zoom } : null,
+            humanFilter: vp.filter,
+            resultTotal: view.total,
+            highlightedCount: view.highlighted.length,
+            lastActor: view.lastActor,
+            keptSelection: getShortlistStore().getSnapshot(),
+            visiblePlaces: visible,
+          },
+        };
+      },
+    }),
+    tool({
+      name: 'write_postcard',
+      title: 'La carte postale du futur',
+      description:
+        'Compose the closing keepsake: a short letter written from day 2-3 of the trip, ' +
+        "first person, French, using ONLY what the visitor KEPT (their scout flags — check " +
+        'get_scout_reports first). The factual footer (places, towns, dates, links) is ' +
+        'printed automatically from their selection; your body text is the prose on top. ' +
+        'Refuses while the selection is empty.',
+      schema: writePostcardInput,
+      readOnly: false,
+      untrusted: false,
+      handler: (input: z.output<typeof writePostcardInput>) => {
+        const selection = getShortlistStore().getSnapshot();
+        if (selection.length === 0) {
+          return {
+            total: 0,
+            data: {
+              error: 'empty_selection',
+              message:
+                'The visitor has not kept anything yet. Send scouts (send_scouts) and let ' +
+                'them keep flags first.',
+            },
+          };
+        }
+        getPostcardStore().set({ title: input.title, body: input.body, day: input.day ?? 3 });
+        return {
+          total: selection.length,
+          data: { status: 'displayed', selection },
+        };
+      },
+    }),
+    tool({
       name: 'get_agent_demand',
       title: 'Agent demand this session',
       description:
@@ -642,7 +859,7 @@ function defs(): ToolDef[] {
 }
 
 /** Single source of truth for the registered tool count (badge, tests, E2E). */
-export const TOOL_COUNT = 14;
+export const TOOL_COUNT = 19;
 
 let registered = false;
 

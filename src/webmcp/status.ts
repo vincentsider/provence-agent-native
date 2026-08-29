@@ -34,6 +34,18 @@ export function getWebMcpStatus(): WebMcpStatus {
   return state;
 }
 
+/**
+ * Hydration snapshot: ALWAYS the initial (unsupported) state. In a WebMCP
+ * browser the tools register at module evaluation, BEFORE hydration, so the
+ * live getter already says "supported" while the server HTML says inactive —
+ * React #425 text mismatch on every ChatGPT-desktop visit (found 29 Aug, 7
+ * hydration errors per load). Serving the frozen state makes hydration match;
+ * React then re-checks the store and repaints the badge immediately after.
+ */
+export function getServerWebMcpStatus(): WebMcpStatus {
+  return INITIAL;
+}
+
 export function subscribeWebMcpStatus(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);

@@ -207,6 +207,98 @@ export const getVisitorSignalsInput = z.object({}).strict();
 
 export const getDemandPulseInput = z.object({}).strict();
 
+const monthField = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+  .describe('Month, YYYY-MM.');
+
+export const sendScoutsInput = z
+  .object({
+    mission: z
+      .string()
+      .min(5)
+      .max(120)
+      .describe("The visitor's desire in one short French sentence, shown on screen."),
+    scouts: z
+      .array(
+        z
+          .object({
+            label: z
+              .string()
+              .min(2)
+              .max(40)
+              .describe('Short French label for this scout, e.g. "villages du Luberon".'),
+            query: z.string().min(2).max(80).optional()
+              .describe('Free-text search, FRENCH terms.'),
+            tags: z.array(tagSlug).max(4).optional()
+              .describe('Tag slugs (ALL required). Call explain_vocabulary for slugs.'),
+            town: z.string().min(1).max(80).optional(),
+            cluster: clusterEnum.optional(),
+            month: monthField.optional(),
+          })
+          .strict()
+          .refine(
+            (b) => b.query !== undefined || (b.tags?.length ?? 0) > 0 || b.town !== undefined || b.cluster !== undefined || b.month !== undefined,
+            { message: 'A scout brief needs at least one search criterion.' },
+          ),
+      )
+      .min(2)
+      .max(4)
+      .describe('2 to 4 DIFFERENT search angles on the same desire.'),
+  })
+  .strict();
+
+export const getScoutReportsInput = z.object({}).strict();
+
+export const findTonightInput = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .describe("Day to look at, YYYY-MM-DD. Omit for today (the visitor's day)."),
+    town: z.string().min(1).max(80).optional()
+      .describe('Center the search on this town.'),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    radius_km: z.number().min(1).max(50).optional()
+      .describe('Walking/driving range in km. Default 15.'),
+    limit: z.number().int().min(1).max(20).optional(),
+  })
+  .strict()
+  .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
+    message: 'lat and lng come together.',
+  });
+
+export const getVisitorViewInput = z.object({}).strict();
+
+export const pinVisiblePlaceInput = (names: readonly string[]) =>
+  z
+    .object({
+      name: z
+        .enum(names as [string, ...string[]])
+        .describe('EXACT name of a place currently visible on the shared map.'),
+    })
+    .strict();
+
+export const writePostcardInput = z
+  .object({
+    title: z.string().min(3).max(60)
+      .describe('Postcard title, French, e.g. "Trois jours entre Luberon et mer".'),
+    body: z
+      .string()
+      .min(40)
+      .max(700)
+      .describe(
+        'The letter, written from day 2 or 3 of the trip, first person, French. ' +
+          'Mention ONLY places and events from the visitor\'s kept selection ' +
+          '(the factual footer is printed automatically from that selection).',
+      ),
+    day: z.number().int().min(1).max(7).optional()
+      .describe('Which trip day the letter is written from.'),
+  })
+  .strict();
+
 export const getAgentDemandInput = z
   .object({
     zeroResultsOnly: z

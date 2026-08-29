@@ -135,6 +135,24 @@ function rawIntent(tool: string, args: Record<string, unknown>): string {
       return 'je vous montre une sélection';
     case 'get_demand_pulse':
       return 'je lis la demande des voyageurs';
+    case 'send_scouts': {
+      const n = Array.isArray(args.scouts) ? args.scouts.length : 0;
+      return n > 0 ? `j'envoie ${n} éclaireurs sur la carte` : "j'envoie mes éclaireurs";
+    }
+    case 'get_scout_reports':
+      return 'je relève les rapports des éclaireurs';
+    case 'find_tonight':
+      return typeof args.town === 'string'
+        ? `je cherche ce qui se passe ce soir à ${short(args.town, 30)}`
+        : 'je cherche ce qui se passe ce soir';
+    case 'get_visitor_view':
+      return 'je regarde ce que vous regardez';
+    case 'pin_visible_place':
+      return typeof args.name === 'string'
+        ? `je vous montre ${short(args.name, 50)}`
+        : 'je vous montre un lieu';
+    case 'write_postcard':
+      return "j'écris votre carte postale";
     case 'get_visitor_signals':
       return 'je lis vos gestes';
     case 'ask_visitor':
