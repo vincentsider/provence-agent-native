@@ -12,7 +12,7 @@
  * day-grouped carnet from the kept selection, no agent required.
  */
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { buildDefaultCarnet, getCarnetStore } from '@/lib/carnet';
 import { getShortlistStore } from '@/lib/shortlist';
@@ -49,6 +49,12 @@ export function CarnetPanel() {
   const t = useTranslations('carnet');
   const store = getCarnetStore();
   const carnet = useSyncExternalStore(store.subscribe, store.getSnapshot, () => null);
+  // The print stylesheet only takes over while the carnet is actually open.
+  useEffect(() => {
+    if (!carnet) return;
+    document.body.classList.add('carnet-open');
+    return () => document.body.classList.remove('carnet-open');
+  }, [carnet]);
   if (!carnet) return null;
 
   const photos = carnet.days

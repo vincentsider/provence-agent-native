@@ -280,11 +280,13 @@
 .map-legend p { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 .map-legend .poi-chip, .map-legend .demand-pulse { transform: scale(0.7); transform-origin: left center; flex: none; }
 
-/* --- Carnet print layout (29 Aug): print-to-PDF IS the download. --- */
+/* --- Carnet print layout (29 Aug): print-to-PDF IS the download. ---
+   Scoped to body.carnet-open (set by CarnetPanel while mounted): without
+   the scope, ANY normal Ctrl+P on the site printed a blank page (audit 9). */
 @media print {
-  body * { visibility: hidden; }
-  .carnet-overlay, .carnet-overlay * { visibility: visible; }
-  .carnet-overlay { position: absolute !important; inset: 0 !important; }
+  body.carnet-open * { visibility: hidden; }
+  body.carnet-open .carnet-overlay, body.carnet-open .carnet-overlay * { visibility: visible; }
+  body.carnet-open .carnet-overlay { position: absolute !important; inset: 0 !important; }
   .carnet-day { page-break-inside: avoid; }
   @page { size: A4; margin: 12mm; }
 }

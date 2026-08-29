@@ -72,7 +72,7 @@ export function MissionHero({ mission, children }: { mission: Mission; children?
             'linear-gradient(180deg, rgba(0,39,49,.88) 0%, rgba(0,39,49,.45) 45%, rgba(0,39,49,.88) 100%)',
         }}
       />
-      <div className="relative mx-auto max-w-[900px] px-5 py-10 text-center">
+      <div className="relative mx-auto max-w-[900px] px-5 py-10 text-center text-white">
         <p className="display-caps text-[12px] tracking-widest text-brand-yellow/90">{t('kicker')}</p>
         <h2 className="display-caps mx-auto mt-3 max-w-[820px] text-2xl leading-[1.15] text-white md:text-4xl">
           {mission.mission}
