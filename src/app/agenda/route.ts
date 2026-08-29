@@ -80,11 +80,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 <h1>Agenda Provence — événements des 90 prochains jours</h1>
 <p>Source : catalogue officiel Provence Tourisme (myprovence.fr), instantané du ${esc(sc.generatedAt.slice(0, 10))}.
 ${total} événements sur la période, 40 affichés, ordre chronologique. Chaque lien renvoie vers la fiche canonique myprovence.fr.</p>
-<p>Accès machine : <a href="/api/events?month=${esc(today.slice(0, 7))}">/api/events?month=YYYY-MM</a> ·
-<a href="/api/events">/api/events?query=…&amp;category=…&amp;town=…</a> ·
-<a href="/api/places">/api/places?cluster=hotels&amp;tag=parking</a> ·
-<a href="/llms.txt">/llms.txt</a>.
-Dans un navigateur compatible WebMCP, la page <a href="/fr">/fr</a> expose en plus 10 outils de site (find_events, filter_places…).</p>
+<p>Accès machine — exemples RÉELLEMENT paramétrés (un agent qui suit des liens
+doit pouvoir cliquer, pas recomposer l'URL ; adaptez les valeurs) :</p>
+<ul>
+<li><a href="/api/events?month=${esc(today.slice(0, 7))}">/api/events?month=${esc(today.slice(0, 7))}</a> — l'agenda d'un mois</li>
+<li><a href="/api/events?query=marche&amp;town=Cassis">/api/events?query=marche&amp;town=Cassis</a> — recherche libre + ville</li>
+<li><a href="/api/events?category=festival&amp;town=Marseille&amp;month=${esc(today.slice(0, 7))}">/api/events?category=festival&amp;town=Marseille&amp;month=${esc(today.slice(0, 7))}</a> — catégorie + ville + mois</li>
+<li><a href="/api/places?cluster=hotels&amp;town=Cassis&amp;tag=parking">/api/places?cluster=hotels&amp;town=Cassis&amp;tag=parking</a> — hôtels d'une ville, critère parking</li>
+<li><a href="/api/places?cluster=campings&amp;tag=animaux-acceptes">/api/places?cluster=campings&amp;tag=animaux-acceptes</a> — campings acceptant les animaux</li>
+<li><a href="/api/places?query=piscine+chauffee&amp;minGrade=4">/api/places?query=piscine+chauffee&amp;minGrade=4</a> — texte libre + étoiles minimum</li>
+<li><a href="/llms.txt">/llms.txt</a> — description complète de la surface (paramètres, vocabulaire)</li>
+</ul>
+<p>Dans un navigateur compatible WebMCP, la page <a href="/fr">/fr</a> expose en plus 19 outils de site (send_scouts, find_events, filter_places, find_tonight…).</p>
 <ol>
 ${items}
 </ol>

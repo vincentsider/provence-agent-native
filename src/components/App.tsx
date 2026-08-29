@@ -373,7 +373,9 @@ function SiteFooter({ snapshotDate }: { snapshotDate: string | null }) {
         </p>
         <p className="mt-1 text-white/50">
           {tf('machine')}{' '}
-          <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events</a>
+          <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events?month=2026-10</a>
+          {' · '}
+          <a className="underline hover:text-brand-yellow" href="/api/places?cluster=hotels&town=Cassis&tag=parking">/api/places?cluster=hotels&town=Cassis&tag=parking</a>
           {' · '}
           <a className="underline hover:text-brand-yellow" href="/agenda">/agenda</a>
           {' · '}
