@@ -29,6 +29,7 @@ import { PostcardPanel } from './PostcardPanel';
 import { WishBox } from './WishBox';
 import { MissionHero } from './MissionBanner';
 import { CarnetButton, CarnetPanel } from './CarnetPanel';
+import { MissionHistory } from './MissionHistory';
 import { getScoutStore } from '@/lib/scouts';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
@@ -194,6 +195,7 @@ function Hero() {
     return (
       <MissionHero mission={mission}>
         <WishBox />
+        <MissionHistory />
         <div className="mt-5 flex justify-center">
           <WebMcpBadge />
         </div>
@@ -212,6 +214,7 @@ function Hero() {
           {t('subtitle')}
         </p>
         <WishBox />
+        <MissionHistory />
         <div className="mt-5 flex justify-center">
           <WebMcpBadge />
         </div>

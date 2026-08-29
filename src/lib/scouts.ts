@@ -155,16 +155,36 @@ export function runMission(
   return { missionId: `m-${Date.now().toString(36)}`, mission, reports };
 }
 
+const MAX_HISTORY = 8;
+
 export class ScoutMissionStore {
   #active: Mission | null = null;
-  #archived: Mission | null = null;
+  #history: Mission[] = [];
+  #historySnapshot: readonly Mission[] = [];
   #listeners = new Set<() => void>();
 
   start(mission: Mission): void {
-    if (this.#active) this.#archived = this.#active;
+    if (this.#active && this.#active.missionId !== mission.missionId) {
+      this.#history = [
+        this.#active,
+        ...this.#history.filter((m) => m.missionId !== this.#active!.missionId),
+      ].slice(0, MAX_HISTORY);
+    }
+    this.#history = this.#history.filter((m) => m.missionId !== mission.missionId);
+    this.#historySnapshot = [...this.#history];
     this.#active = mission;
     for (const fn of this.#listeners) fn();
   }
+
+  /** Bring an archived mission back on stage (verdicts intact). */
+  restore(missionId: string): Mission | null {
+    const mission = this.#history.find((m) => m.missionId === missionId);
+    if (!mission) return null;
+    this.start(mission);
+    return mission;
+  }
+
+  history = (): readonly Mission[] => this.#historySnapshot;
 
   setVerdict(findingId: number, verdict: Verdict): boolean {
     if (!this.#active) return false;
@@ -190,7 +210,8 @@ export class ScoutMissionStore {
   destroy(): void {
     this.#listeners.clear();
     this.#active = null;
-    this.#archived = null;
+    this.#history = [];
+    this.#historySnapshot = [];
   }
 }
 

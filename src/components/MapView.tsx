@@ -55,6 +55,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   const scoutLayerRef = useRef<LayerGroup | null>(null);
   const t = useTranslations('scouts');
   const tl = useTranslations('legend');
+  const [legendOpen, setLegendOpen] = useState(false);
 
   // Create once, destroy on unmount.
   useEffect(() => {
@@ -264,9 +265,12 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             icon: L.divIcon({
               className: 'scout-flag-wrap',
               html:
-                `<span class="scout-flag" style="--tint:${tint}"></span>` +
-                `<span class="scout-flag-glyph">${f.glyph}</span>`,
-              iconAnchor: [3, 30],
+                `<span class="scout-flag-glyph" style="--tint:${tint}">${f.glyph}</span>` +
+                `<span class="scout-flag" style="--tint:${tint}"></span>`,
+              // The ROOT is the click target: it must cover the visuals
+              // (12x12 default made the drawing unclickable — field bug).
+              iconSize: [26, 40],
+              iconAnchor: [13, 40],
             }),
           }).addTo(layer);
           // Popup content is BUILT, never innerHTML'd: names are catalogue
@@ -312,7 +316,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           });
           row.append(keep, dismiss);
           content.append(title, line, row);
-          flag.bindPopup(content, { closeButton: false, offset: [8, -18] });
+          flag.bindPopup(content, { closeButton: false, offset: [0, -40] });
         };
 
         for (const report of mission.reports) {
@@ -505,6 +509,11 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       // town centroid, hollow-styled and labelled approximate, with a small
       // deterministic offset so stacked townmates stay distinguishable.
       const centroids = townCentroids(store.catalog, store.vocab);
+      // A place that currently carries a scout flag must not ALSO get a
+      // chip: two signs on one roof read as two places (field bug).
+      const flagged = new Set(
+        (getScoutStore().getSnapshot()?.reports ?? []).flatMap((r) => r.findings.map((f) => f.id)),
+      );
       const coordsOf = (p: (typeof places)[number]): { lat: number; lng: number; approx: boolean } | null => {
         if (p.lat !== null && p.lng !== null) return { lat: p.lat, lng: p.lng, approx: false };
         const town = p.t >= 0 ? store.vocab.towns[p.t] : undefined;
@@ -516,7 +525,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       for (const i of view.highlighted) {
         if (drawn >= MARKER_CAP) break;
         const p = places[i];
-        if (!p) continue;
+        if (!p || flagged.has(p.id)) continue;
         const at = coordsOf(p);
         if (!at) continue;
         // Signature craft detail (issue #607): the agent labels its first
@@ -570,6 +579,16 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           aria-label="Carte"
           className="h-[420px] w-full border border-brand-ink/10"
         />
+        <button
+          type="button"
+          className="map-legend-toggle"
+          aria-expanded={legendOpen}
+          aria-label={tl('toggle')}
+          onClick={() => setLegendOpen((v) => !v)}
+        >
+          ?
+        </button>
+        {legendOpen && (
         <div className="map-legend" data-testid="map-legend">
           <p>
             <span className="poi-chip">🛏</span> {tl('chip')}
@@ -578,12 +597,13 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             <span className="poi-chip poi-chip--agent">🧺</span> {tl('agentChip')}
           </p>
           <p>
-            <span aria-hidden className="inline-block h-[22px] w-[6px] bg-brand-petrol" /> {tl('flag')}
+            <span aria-hidden className="inline-block h-[18px] w-[4px] bg-brand-petrol" /> {tl('flag')}
           </p>
           <p>
             <span aria-hidden className="demand-pulse" style={{ ['--size' as string]: '18px' }} /> {tl('pulse')}
           </p>
         </div>
+        )}
       </div>
       {wheel && (
         <div

@@ -94,5 +94,8 @@
     "sources": "Toutes les fiches renvoient vers myprovence.fr. Photos © offices de tourisme des Bouches-du-Rhône.",
     "pdf": "Télécharger en PDF",
     "close": "Fermer"
+  },
+  "history": {
+    "title": "Vos recherches précédentes — tapez pour rejouer"
   }
 }

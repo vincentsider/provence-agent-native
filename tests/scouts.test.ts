@@ -123,6 +123,25 @@ describe('ScoutMissionStore', () => {
   });
 });
 
+describe('ScoutMissionStore history', () => {
+  it('archives interrupted missions and restores them with verdicts intact', () => {
+    const store = new ScoutMissionStore();
+    const engine = fixtureEngine();
+    const m1 = runMission(engine, 'mission un', [{ label: 'a', town: 'Cassis' }, { label: 'b', query: 'vent' }], '2026-09-01');
+    const m2 = { ...runMission(engine, 'mission deux', [{ label: 'c', query: 'vent' }, { label: 'd', town: 'Cassis' }], '2026-09-01'), missionId: 'm-two' };
+    store.start(m1);
+    store.setVerdict(1, 'kept');
+    store.start(m2);
+    expect(store.history().map((m) => m.mission)).toEqual(['mission un']);
+    const restored = store.restore(m1.missionId);
+    expect(restored?.reports[0]?.verdicts[1]).toBe('kept');
+    expect(store.getSnapshot()?.mission).toBe('mission un');
+    expect(store.history().map((m) => m.mission)).toEqual(['mission deux']);
+    expect(store.restore('nope')).toBeNull();
+    store.destroy();
+  });
+});
+
 describe('ShortlistStore', () => {
   it('dedupes, caps at 20 dropping the oldest, and removes', () => {
     const store = new ShortlistStore();

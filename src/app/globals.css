@@ -135,38 +135,28 @@
   font-family: var(--font-slab), Georgia, serif;
 }
 
-.scout-flag-wrap { background: transparent; border: none; overflow: visible; }
-.scout-flag {
-  display: block;
-  width: 6px;
-  height: 22px;
-  background: rgba(0, 39, 49, 0.85);
-  position: relative;
+.scout-flag-wrap {
+  background: transparent;
+  border: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   cursor: pointer;
 }
-.scout-flag::after {
-  content: '';
-  position: absolute;
-  left: 3px;
-  top: 0;
-  width: 14px;
-  height: 10px;
-  background: var(--tint, #ee6e62);
-  animation: scout-flag-in 300ms ease-out;
+.scout-flag {
+  display: block;
+  width: 4px;
+  height: 12px;
+  background: var(--tint, #002731);
 }
-.scout-flag-wrap--kept .scout-flag::after { background: #ffe500; }
-.scout-flag-wrap--kept .scout-flag::before {
-  content: '✓';
-  position: absolute;
-  left: 5px;
-  top: -3px;
-  z-index: 1;
-  font-size: 9px;
-  color: #002731;
+.scout-flag-wrap--kept .scout-flag-glyph {
+  background: #ffe500;
+  box-shadow: 0 0 0 2px #002731 inset;
 }
 @keyframes scout-flag-in {
-  from { transform: scaleX(0); transform-origin: left; }
-  to { transform: scaleX(1); }
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
 .scout-popup { font-family: var(--font-slab), Georgia, serif; min-width: 180px; }
@@ -246,24 +236,38 @@
 }
 .poi-chip--approx { border-style: dashed; opacity: 0.75; }
 .scout-flag-glyph {
-  position: absolute;
-  left: 8px;
-  top: -6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid var(--tint, #002731);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
+  animation: scout-flag-in 300ms ease-out;
+  box-shadow: 0 1px 3px rgba(0, 39, 49, 0.35);
+}
+.map-legend-toggle {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 801;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #002731;
+  background: #fffdf5;
+  color: #002731;
+  font-family: var(--font-display), 'Arial Black', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
 }
 .map-legend {
   position: absolute;
   left: 10px;
-  bottom: 10px;
+  bottom: 44px;
   z-index: 800;
   background: rgba(255, 253, 245, 0.95);
   border: 1px solid rgba(0, 39, 49, 0.25);

@@ -94,5 +94,8 @@
     "sources": "Every card links to myprovence.fr. Photos © Bouches-du-Rhône tourism offices.",
     "pdf": "Download as PDF",
     "close": "Close"
+  },
+  "history": {
+    "title": "Your previous searches — tap to replay"
   }
 }
