@@ -19,7 +19,8 @@ const CLUSTER_WORDS: ReadonlyArray<{ cluster: ClusterKey; words: readonly string
   { cluster: 'hotels', words: ['hotel', 'hotels', 'hôtel', 'chambre d hotel'] },
   { cluster: 'campings', words: ['camping', 'campings', 'tente', 'mobil'] },
   { cluster: 'chambres-d-hotes', words: ['chambre', 'chambres', 'hote', 'hotes', 'b&b', 'maison d hote'] },
-  { cluster: 'loisirs', words: ['loisir', 'activite', 'kayak', 'velo', 'rando', 'randonnee', 'balade', 'visite', 'musee', 'plage', 'calanque', 'nature', 'hike', 'hiking', 'outdoor', 'swim'] },
+  { cluster: 'loisirs', words: ['loisir', 'activite', 'kayak', 'visite', 'musee', 'plage', 'calanque', 'swim'] },
+  { cluster: 'itineraires', words: ['nature', 'rando', 'randonnee', 'randonnees', 'balade', 'balades', 'marche a pied', 'circuit', 'boucle', 'sentier', 'velo', 'vtt', 'hike', 'hiking', 'outdoor', 'trail', 'walk', 'cycling'] },
   { cluster: 'agenda', words: ['marche', 'marches', 'festival', 'concert', 'evenement', 'evenements', 'fete', 'spectacle', 'expo', 'exposition', 'soir', 'soiree', 'market', 'event'] },
 ];
 
@@ -87,9 +88,14 @@ export function parseWish(store: WishVocab, raw: string): ParsedWish {
   const thisMonth = new Date().toISOString().slice(0, 7);
 
   // One scout per named region: the comparison the visitor asked for.
+  // A nature/hiking wish narrows each region scout to the official routes.
   for (const region of regions) {
-    const wantsLoisirs = clusters.includes('loisirs');
-    briefs.push({ label: label(region), query: region, cluster: wantsLoisirs ? 'loisirs' : undefined });
+    const focus = clusters.includes('itineraires')
+      ? ('itineraires' as const)
+      : clusters.includes('loisirs')
+        ? ('loisirs' as const)
+        : undefined;
+    briefs.push({ label: label(region), query: region, cluster: focus });
   }
 
   for (const town of primaryTowns) {
@@ -99,6 +105,9 @@ export function parseWish(store: WishVocab, raw: string): ParsedWish {
     }
     if (clusters.includes('loisirs') && regions.length === 0) {
       briefs.push({ label: label('loisirs', town), cluster: 'loisirs', town, query: query || undefined });
+    }
+    if (clusters.includes('itineraires') && regions.length === 0) {
+      briefs.push({ label: label('circuits', town), cluster: 'itineraires', town });
     }
     if (clusters.includes('agenda')) {
       // Anchored to the current month: an undated agenda brief surfaces

@@ -27,6 +27,8 @@ describe('parseWish regions (field bug 29 Aug)', () => {
     expect(briefs.length).toBeGreaterThanOrEqual(2);
     expect(briefs.some((b) => b.query === 'alpilles')).toBe(true);
     expect(briefs.some((b) => b.query === 'camargue')).toBe(true);
+    // 'nature' narrows the region scouts to the official routes cluster.
+    expect(briefs.filter((b) => b.cluster === 'itineraires').length).toBeGreaterThanOrEqual(2);
   });
 
   it('never yields fewer than two briefs, whatever the input', () => {
