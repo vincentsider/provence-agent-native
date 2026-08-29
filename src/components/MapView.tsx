@@ -210,6 +210,11 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         layer.clearLayers();
         const origin = map.getCenter();
 
+        // The camera frames the whole mission before the scouts fly: bodies
+        // were gliding out of view (field report 29 Aug, screenshot of scouts
+        // beyond the frame).
+        const allSpots: Array<[number, number]> = [];
+
         // Findings without coordinates flag at their town centroid, like the
         // marker layer (field bug 29 Aug: region wishes produced invisible
         // scouts because agenda records often carry no GPS point).
@@ -276,6 +281,20 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           content.append(title, line, row);
           flag.bindPopup(content, { closeButton: false, offset: [8, -18] });
         };
+
+        for (const report of mission.reports) {
+          for (const f of report.findings) {
+            const spot = spotOf(f);
+            if (spot) allSpots.push([spot.lat, spot.lng]);
+          }
+        }
+        if (allSpots.length > 0) {
+          map.fitBounds(L.latLngBounds(allSpots), {
+            padding: [60, 60],
+            maxZoom: 12,
+            animate: !reduced,
+          });
+        }
 
         mission.reports.forEach((report, i) => {
           const stops = report.findings.filter((f) => spotOf(f) !== null);
