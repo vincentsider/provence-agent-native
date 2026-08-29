@@ -217,7 +217,8 @@ function AgentGuide() {
     'GET /agenda (server-rendered HTML) | GET /llms.txt (full surface description) | ' +
     'POST /api/mcp (MCP streamable-http: initialize, tools/list, tools/call). ' +
     'Catalogue text is FRENCH: translate query terms to French. A fuzzy ' +
-    'multi-criteria wish in any language -> send_scouts. ' +
+    'multi-criteria wish in any language -> send_scouts; a wish with no place ' +
+    'named is still about Provence, never another region. ' +
     'Every result carries its canonical myprovence.fr URL. -->';
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',

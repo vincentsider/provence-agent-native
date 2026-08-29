@@ -29,8 +29,9 @@
   pin_visible_place whose schema lists only what is on the visitor's
   screen) over the same shared view.
   send_scouts turns one fuzzy multi-criteria wish (stated in ANY language,
-  never by tool name) into 2-4 scout searches that fan out visibly across
-  the map and plant flags the visitor keeps or dismisses;
+  never by tool name; a wish with NO place named is still about Provence)
+  into 2-4 scout searches that fan out visibly across the map and plant
+  flags the visitor keeps or dismisses;
   find_tonight answers "what is happening tonight near me" from real dated
   events; get_visitor_view returns the viewport, filters and selection the
   visitor currently has in front of them; write_postcard composes the
