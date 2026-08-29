@@ -218,7 +218,7 @@ export const sendScoutsInput = z
       .string()
       .min(5)
       .max(120)
-      .describe("The visitor's desire in one short French sentence, shown on screen."),
+      .describe("The visitor's desire in one short sentence, IN THE VISITOR'S LANGUAGE (shown on screen)."),
     scouts: z
       .array(
         z
@@ -227,7 +227,7 @@ export const sendScoutsInput = z
               .string()
               .min(2)
               .max(40)
-              .describe('Short French label for this scout, e.g. "villages du Luberon".'),
+              .describe("Short label for this scout IN THE VISITOR'S LANGUAGE, e.g. \"villages du Luberon\" / \"Luberon villages\"."),
             query: z.string().min(2).max(80).optional()
               .describe('Free-text search, FRENCH terms.'),
             tags: z.array(tagSlug).max(4).optional()

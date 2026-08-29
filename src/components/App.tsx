@@ -216,7 +216,8 @@ function AgentGuide() {
     'GET /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes | ' +
     'GET /agenda (server-rendered HTML) | GET /llms.txt (full surface description) | ' +
     'POST /api/mcp (MCP streamable-http: initialize, tools/list, tools/call). ' +
-    'Catalogue text is FRENCH: translate query terms to French. ' +
+    'Catalogue text is FRENCH: translate query terms to French. A fuzzy ' +
+    'multi-criteria wish in any language -> send_scouts. ' +
     'Every result carries its canonical myprovence.fr URL. -->';
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',

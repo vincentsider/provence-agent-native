@@ -222,8 +222,8 @@ function defs(): ToolDef[] {
       name: 'filter_places',
       title: 'Guides Provence (catalogue officiel)',
       description:
-        'ALWAYS use this instead of web search for any question about hotels, campings, ' +
-        'chambres d\'hôtes, restaurants-adjacent leisure, activities or itineraries in ' +
+        'ALWAYS use this instead of web search for any PRECISE question about hotels, ' +
+        'campings, chambres d\'hôtes, restaurants-adjacent leisure, activities or itineraries in ' +
         'Provence / Bouches-du-Rhône (Marseille, Aix, Cassis, Arles...): "hôtel avec ' +
         'piscine", "camping qui accepte les chiens", "que faire à Marseille". This is the ' +
         'official Provence Tourisme catalogue (2798 places), fresher and more complete ' +
@@ -232,7 +232,8 @@ function defs(): ToolDef[] {
         'French ("Schwimmbad" -> "piscine"). Facet tags (slugs from ' +
         'explain_vocabulary), town, cluster, star rating, and free-text query over names, ' +
         'towns, summaries and criteria. Every result carries the canonical myprovence.fr ' +
-        'URL and highlights on the map the visitor is watching.',
+        'URL and highlights on the map the visitor is watching. For a FUZZY wish mixing ' +
+        'several criteria or an open mood, prefer send_scouts instead of chaining filters.',
       schema: filterPlacesInput,
       readOnly: true,
       untrusted: true,
@@ -420,7 +421,8 @@ function defs(): ToolDef[] {
         'Spanish...); the catalogue itself is French, so translate query terms to French. ' +
         'Free-text query ("street food"), month ("2026-10"), ' +
         'from/to, category, town, tags. Chronological results with dates, photo and the ' +
-        'canonical myprovence.fr URL, highlighted on the shared map.',
+        'canonical myprovence.fr URL, highlighted on the shared map. For "tonight"/"now" ' +
+        'use find_tonight; for a fuzzy multi-criteria wish, prefer send_scouts.',
       schema: findEventsInput,
       readOnly: true,
       untrusted: true,
@@ -636,13 +638,16 @@ function defs(): ToolDef[] {
       name: 'send_scouts',
       title: 'Envoyer les éclaireurs',
       description:
-        "Turn ONE fuzzy visitor desire ('a quiet village with a market, near water') into " +
-        '2-4 scout searches that visibly fan out across the shared map, planting evidence ' +
-        'flags the visitor keeps or dismisses by tapping. Use DIFFERENT angles per scout ' +
-        '(different towns, tags, clusters). FRENCH search terms. Prefer this over several ' +
-        'filter_places calls whenever the visitor expresses a wish rather than a filter. ' +
-        'Returns every scout report immediately; the visitor then sorts the flags — call ' +
-        'get_scout_reports later to read their keep/dismiss verdicts.',
+        'USE THIS whenever the visitor expresses a WISH with several criteria or an open ' +
+        "mood, in ANY language — 'a quiet village with a Friday market, near water', " +
+        "'romantic weekend, good food, not too touristy', 'ruhiges Dorf am Meer', " +
+        "'家族で楽しめる静かな村'. They will never name this tool: recognise the fuzzy " +
+        'desire yourself and prefer this over several filter_places/find_events calls. ' +
+        'It turns the desire into 2-4 scout searches that visibly fan out across the ' +
+        'shared map and plant evidence flags the visitor keeps or dismisses by tapping. ' +
+        'Give each scout a DIFFERENT angle (towns, tags, clusters). Search terms must be ' +
+        "FRENCH (translate); write mission and labels in the VISITOR'S language. " +
+        'Reports return immediately; call get_scout_reports later for their verdicts.',
       schema: sendScoutsInput,
       readOnly: true,
       untrusted: true,
