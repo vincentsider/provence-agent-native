@@ -573,7 +573,11 @@ function defs(): ToolDef[] {
       title: 'Highlight places',
       description:
         'Mark a set of places on the shared map and result list so the visitor sees ' +
-        'what you are talking about. Mutates only the view state of this browser tab.',
+        'what you are talking about. IMPORTANT: each search call REPLACES the map ' +
+        'selection, so before giving your final answer, call this with the COMPLETE set ' +
+        'of ids you are citing (hotels AND events together) — everything you mention ' +
+        'must be visible on the map, town-level pins included for events without exact ' +
+        'coordinates. Mutates only the view state of this browser tab.',
       schema: highlightPlacesInput,
       readOnly: false,
       untrusted: false,

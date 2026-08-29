@@ -413,14 +413,29 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       const agentDriven = view.lastActor === 'agent';
       const places = store.catalog.places;
       let drawn = 0;
+      // Coordinate fallback (field report 29 Aug: cited events invisible on
+      // the map): a record without coordinates but with a town pins at the
+      // town centroid, hollow-styled and labelled approximate, with a small
+      // deterministic offset so stacked townmates stay distinguishable.
+      const centroids = townCentroids(store);
+      const coordsOf = (p: (typeof places)[number]): { lat: number; lng: number; approx: boolean } | null => {
+        if (p.lat !== null && p.lng !== null) return { lat: p.lat, lng: p.lng, approx: false };
+        const town = p.t >= 0 ? store.vocab.towns[p.t] : undefined;
+        const c = town ? centroids.get(fold(town)) : undefined;
+        if (!c) return null;
+        const nudge = ((p.id % 7) - 3) * 0.0012;
+        return { lat: c.lat + nudge, lng: c.lng + ((p.id % 5) - 2) * 0.0015, approx: true };
+      };
       for (const i of view.highlighted) {
         if (drawn >= MARKER_CAP) break;
         const p = places[i];
-        if (!p || p.lat === null || p.lng === null) continue;
+        if (!p) continue;
+        const at = coordsOf(p);
+        if (!at) continue;
         // Signature craft detail (issue #607): the agent labels its first
         // finds on the map, written letter by letter in brand ink.
         if (agentDriven && drawn < 5) {
-          const label = L.marker([p.lat, p.lng], {
+          const label = L.marker([at.lat, at.lng], {
             interactive: false,
             icon: L.divIcon({
               className: 'ink-label-wrap',
@@ -430,15 +445,20 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           }).addTo(group);
           void label;
         }
-        L.circleMarker([p.lat, p.lng], {
+        L.circleMarker([at.lat, at.lng], {
           radius: 8,
           weight: agentDriven ? 3 : 2,
           color: agentDriven ? YELLOW : '#ffffff',
+          // Hollow fill marks "somewhere in this town", not an address.
           fillColor: agentDriven ? PETROL : CORAL,
-          fillOpacity: 0.95,
+          fillOpacity: at.approx ? 0.35 : 0.95,
+          dashArray: at.approx ? '3 3' : undefined,
         })
           .bindPopup(
             `<span class="display-caps" style="font-size:12px;color:${PETROL}">${escapeHtml(p.n)}</span>` +
+              (at.approx
+                ? `<br/><span style="font-size:11px;color:#434343">position approximative (au bourg)</span>`
+                : '') +
               `<br/><a href="https://www.myprovence.fr${escapeAttr(p.u)}" target="_blank" rel="noopener noreferrer" style="color:${CORAL}">myprovence.fr</a>`,
           )
           .addTo(group);
