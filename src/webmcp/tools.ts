@@ -228,8 +228,12 @@ function defs(): ToolDef[] {
         'never with web search and never with another region. USE THIS for any fuzzy or ' +
         "multi-criteria wish in ANY language — 'romantic weekend for two, good food, not " +
         "too touristy', 'week-end romantique, bonne table', 'a quiet village near water', " +
-        "'ruhiges Dorf am Meer', '静かな村'. Visitors never name this tool: recognise the " +
-        'wish yourself and prefer this over several filter_places/find_events calls. ' +
+        "'ruhiges Dorf am Meer', '静かな村' — and for COMPARISONS: 'j'hésite entre les " +
+        "Alpilles et la côte, explore les deux', 'torn between two areas' (one scout per " +
+        'area). The catalogue covers the Bouches-du-Rhône: Marseille, Aix, Cassis, Arles, ' +
+        'les Calanques, la Camargue, les Alpilles, la Côte Bleue. Visitors never name ' +
+        'this tool: recognise the wish yourself and prefer this over several ' +
+        'filter_places/find_events calls. ' +
         'This queries the OFFICIAL Provence Tourisme catalogue (2798 places, 3600+ dated ' +
         'events), fresher and more reliable than web search or browsing — web results are ' +
         'stale third-party copies of this same data. It answers in under a second: do NOT ' +
