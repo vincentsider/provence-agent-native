@@ -212,12 +212,17 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
     const timers: Array<ReturnType<typeof setTimeout>> = [];
     let epoch = 0;
     let lastMissionId: string | null = null;
+    // One drag listener per RUNNING mission: an interrupted mission must
+    // detach its listener, or they accumulate one per replay (audit 8).
+    let detachDrag: (() => void) | null = null;
     const reduced =
       typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const clearTimers = () => {
       for (const timer of timers) clearTimeout(timer);
       timers.length = 0;
+      detachDrag?.();
+      detachDrag = null;
     };
 
     const play = () => {
@@ -332,11 +337,13 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           humanMoved = true;
         };
         map.on('dragstart', onDrag);
+        detachDrag = () => map.off('dragstart', onDrag);
         const lastLanding =
           400 + mission.reports.length * 350 + MAX_FINDINGS * 1400 + 2200;
         timers.push(
           setTimeout(() => {
-            map.off('dragstart', onDrag);
+            detachDrag?.();
+            detachDrag = null;
             if (mine === epoch && !humanMoved) frameMission();
           }, lastLanding),
         );

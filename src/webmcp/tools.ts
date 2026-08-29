@@ -764,7 +764,14 @@ function defs(): ToolDef[] {
           }
         }
         if (!center && townFilter === undefined) {
-          center = store.getView().center;
+          // "Near me" = the middle of what the human is LOOKING at. The
+          // viewport store is fed by the map itself, so it stays true after
+          // camera frames; the store center only tracks explicit setView
+          // calls (audit 8).
+          const b = getViewportStore().getSnapshot().bounds;
+          center = b
+            ? { lat: (b.north + b.south) / 2, lng: (b.east + b.west) / 2 }
+            : store.getView().center;
         }
         // 800-candidate pool: a big town's day overlaps hundreds of
         // long-running events, and a 200 cap was cutting the one-night ones
