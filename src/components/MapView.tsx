@@ -17,7 +17,7 @@ import { getPresenceBus } from '@/lib/presence';
 import { getSignalsLog, type PingKind } from '@/lib/signals';
 import { getPulseStore } from '@/lib/pulse-client';
 import { getViewportStore } from '@/lib/viewport';
-import { getScoutStore, type Mission } from '@/lib/scouts';
+import { getScoutStore, MAX_FINDINGS, type Mission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { fold } from '@/lib/types';
 import { useTranslations } from 'next-intl';
@@ -288,13 +288,30 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             if (spot) allSpots.push([spot.lat, spot.lng]);
           }
         }
-        if (allSpots.length > 0) {
+        const frameMission = () => {
+          if (allSpots.length === 0 || !mapRef.current) return;
           map.fitBounds(L.latLngBounds(allSpots), {
             padding: [60, 60],
             maxZoom: 12,
             animate: !reduced,
           });
-        }
+        };
+        frameMission();
+        // Settle shot: once the last flag is planted, re-frame — UNLESS the
+        // human moved the map during the flight (their hand wins, always).
+        let humanMoved = false;
+        const onDrag = () => {
+          humanMoved = true;
+        };
+        map.on('dragstart', onDrag);
+        const lastLanding =
+          400 + mission.reports.length * 350 + MAX_FINDINGS * 1400 + 2200;
+        timers.push(
+          setTimeout(() => {
+            map.off('dragstart', onDrag);
+            if (mine === epoch && !humanMoved) frameMission();
+          }, lastLanding),
+        );
 
         mission.reports.forEach((report, i) => {
           const stops = report.findings.filter((f) => spotOf(f) !== null);
