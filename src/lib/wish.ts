@@ -19,8 +19,16 @@ const CLUSTER_WORDS: ReadonlyArray<{ cluster: ClusterKey; words: readonly string
   { cluster: 'hotels', words: ['hotel', 'hotels', 'hôtel', 'chambre d hotel'] },
   { cluster: 'campings', words: ['camping', 'campings', 'tente', 'mobil'] },
   { cluster: 'chambres-d-hotes', words: ['chambre', 'chambres', 'hote', 'hotes', 'b&b', 'maison d hote'] },
-  { cluster: 'loisirs', words: ['loisir', 'activite', 'kayak', 'velo', 'rando', 'randonnee', 'balade', 'visite', 'musee', 'plage', 'calanque'] },
-  { cluster: 'agenda', words: ['marche', 'marches', 'festival', 'concert', 'evenement', 'evenements', 'fete', 'spectacle', 'expo', 'exposition', 'soir', 'soiree', 'week', 'weekend'] },
+  { cluster: 'loisirs', words: ['loisir', 'activite', 'kayak', 'velo', 'rando', 'randonnee', 'balade', 'visite', 'musee', 'plage', 'calanque', 'nature', 'hike', 'hiking', 'outdoor', 'swim'] },
+  { cluster: 'agenda', words: ['marche', 'marches', 'festival', 'concert', 'evenement', 'evenements', 'fete', 'spectacle', 'expo', 'exposition', 'soir', 'soiree', 'market', 'event'] },
+];
+
+/** Named areas of the Bouches-du-Rhône that are NOT towns: matched as
+ *  free-text query scouts ('J'hésite entre les Alpilles et la Camargue'
+ *  failed silently before this existed — field bug, 29 Aug). */
+const REGIONS: readonly string[] = [
+  'alpilles', 'camargue', 'calanques', 'cote bleue', 'sainte victoire',
+  'sainte baume', 'pays d aix', 'pays d arles', 'etang de berre', 'luberon',
 ];
 
 /** Words that never help a catalogue query (folded). */
@@ -63,6 +71,10 @@ export function parseWish(store: WishVocab, raw: string): ParsedWish {
     if (ws.some((w) => text.includes(w)) && !clusters.includes(cluster)) clusters.push(cluster);
   }
 
+  // Regions: one query scout each (region names live in the catalogue's
+  // names and summaries, so free-text search finds their places).
+  const regions = REGIONS.filter((r) => text.includes(r)).slice(0, 2);
+
   // Salient free-text terms for a query scout.
   const salient = words.filter((w) => !STOP.has(w)).slice(0, 3);
   const query = salient.join(' ');
@@ -72,22 +84,38 @@ export function parseWish(store: WishVocab, raw: string): ParsedWish {
   const lodging = clusters.filter((c) => c !== 'agenda' && c !== 'loisirs');
   const primaryTowns: Array<string | undefined> = towns.length > 0 ? towns : [undefined];
 
+  const thisMonth = new Date().toISOString().slice(0, 7);
+
+  // One scout per named region: the comparison the visitor asked for.
+  for (const region of regions) {
+    const wantsLoisirs = clusters.includes('loisirs');
+    briefs.push({ label: label(region), query: region, cluster: wantsLoisirs ? 'loisirs' : undefined });
+  }
+
   for (const town of primaryTowns) {
     for (const cluster of lodging.slice(0, 2)) {
       const name = cluster === 'chambres-d-hotes' ? "chambres d'hotes" : cluster;
       briefs.push({ label: label(name, town), cluster, town, tags: tags.length ? tags : undefined });
     }
-    if (clusters.includes('loisirs')) {
+    if (clusters.includes('loisirs') && regions.length === 0) {
       briefs.push({ label: label('loisirs', town), cluster: 'loisirs', town, query: query || undefined });
     }
     if (clusters.includes('agenda')) {
-      briefs.push({ label: label('agenda', town), cluster: 'agenda', town });
+      // Anchored to the current month: an undated agenda brief surfaces
+      // arbitrary permanent events, which reads as noise.
+      briefs.push({ label: label('agenda', town), cluster: 'agenda', town, month: thisMonth });
     }
   }
-  // Nothing matched: one free-text scout plus the agenda, still a real show.
-  if (briefs.length === 0) {
-    briefs.push({ label: label('recherche libre'), query: query || fold(raw).slice(0, 60) });
-    briefs.push({ label: label('agenda'), cluster: 'agenda', town: towns[0] });
+  // ALWAYS at least two scouts: a lone scout is not a show, and zero is a
+  // silent failure (field bug, 29 Aug).
+  if (briefs.length === 0 && query) {
+    briefs.push({ label: label('recherche libre'), query });
+  }
+  if (briefs.length < 2) {
+    briefs.push({ label: label('agenda'), cluster: 'agenda', town: towns[0], month: thisMonth });
+  }
+  if (briefs.length < 2) {
+    briefs.push({ label: label('loisirs'), cluster: 'loisirs' });
   }
 
   return { briefs: briefs.slice(0, 4), towns };

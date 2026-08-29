@@ -18,6 +18,24 @@ const vocab: Vocab = {
 };
 const store: WishVocab = { vocab };
 
+describe('parseWish regions (field bug 29 Aug)', () => {
+  it('the Alpilles/Camargue comparison yields one scout per region, 2+ total', () => {
+    const { briefs } = parseWish(
+      store,
+      "J'hésite entre les Alpilles et la Camargue pour un week-end nature. Explore les deux et propose-moi des options.",
+    );
+    expect(briefs.length).toBeGreaterThanOrEqual(2);
+    expect(briefs.some((b) => b.query === 'alpilles')).toBe(true);
+    expect(briefs.some((b) => b.query === 'camargue')).toBe(true);
+  });
+
+  it('never yields fewer than two briefs, whatever the input', () => {
+    for (const text of ['Cassis !', 'nature', 'aaaaa bbbbb', 'un truc sympa ce soir']) {
+      expect(parseWish(store, text).briefs.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
 describe('parseWish', () => {
   it('maps the canonical wish to town + lodging + events briefs', () => {
     const { briefs, towns } = parseWish(

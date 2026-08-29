@@ -210,9 +210,23 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         layer.clearLayers();
         const origin = map.getCenter();
 
+        // Findings without coordinates flag at their town centroid, like the
+        // marker layer (field bug 29 Aug: region wishes produced invisible
+        // scouts because agenda records often carry no GPS point).
+        const centroids = townCentroids(store);
+        const spotOf = (
+          f: Mission['reports'][number]['findings'][number],
+        ): { lat: number; lng: number } | null => {
+          if (f.lat !== null && f.lng !== null) return { lat: f.lat, lng: f.lng };
+          const c = f.town ? centroids.get(fold(f.town)) : undefined;
+          if (!c) return null;
+          return { lat: c.lat + ((f.id % 7) - 3) * 0.0012, lng: c.lng + ((f.id % 5) - 2) * 0.0015 };
+        };
+
         const plantFlag = (f: Mission['reports'][number]['findings'][number], tint: string) => {
-          if (f.lat === null || f.lng === null) return;
-          const flag = L.marker([f.lat, f.lng], {
+          const spot = spotOf(f);
+          if (!spot) return;
+          const flag = L.marker([spot.lat, spot.lng], {
             icon: L.divIcon({
               className: 'scout-flag-wrap',
               html: `<span class="scout-flag" style="--tint:${tint}"></span>`,
@@ -264,7 +278,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         };
 
         mission.reports.forEach((report, i) => {
-          const stops = report.findings.filter((f) => f.lat !== null && f.lng !== null);
+          const stops = report.findings.filter((f) => spotOf(f) !== null);
           if (stops.length === 0) return;
           const tint = SCOUT_TINTS[i % SCOUT_TINTS.length]!;
           if (reduced) {
@@ -285,7 +299,9 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             timers.push(
               setTimeout(() => {
                 if (mine !== epoch) return;
-                body.setLatLng([f.lat!, f.lng!]);
+                const spot = spotOf(f);
+                if (!spot) return;
+                body.setLatLng([spot.lat, spot.lng]);
                 timers.push(
                   setTimeout(() => {
                     if (mine === epoch) plantFlag(f, tint);
