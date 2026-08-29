@@ -31,6 +31,8 @@ export interface ScoutFinding {
   readonly name: string;
   readonly town: string | null;
   readonly url: string;
+  /** Catalogue photo (myprovence.fr), fuels the mission hero collage. */
+  readonly img: string | null;
   readonly lat: number | null;
   readonly lng: number | null;
   readonly summary: string;
@@ -129,6 +131,7 @@ export function runMission(
         name: pub.name,
         town: pub.town,
         url: pub.url,
+        img: pub.image,
         lat: pub.lat,
         lng: pub.lng,
         summary: pub.summary,

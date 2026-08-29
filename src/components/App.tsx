@@ -27,7 +27,8 @@ import { AgentPresence } from './AgentPresence';
 import { ElicitationCards } from './ElicitationCards';
 import { PostcardPanel } from './PostcardPanel';
 import { WishBox } from './WishBox';
-import { MissionBanner } from './MissionBanner';
+import { MissionHero } from './MissionBanner';
+import { getScoutStore } from '@/lib/scouts';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
 
@@ -177,9 +178,28 @@ function Masthead({
   );
 }
 
-/** The yellow hero band: crumb, display title, slab intro, live status. */
+/** The hero band. At rest: the classic yellow masthead. During a mission:
+ *  the findings' real photographs flood it (MissionHero) and the wish box
+ *  rides along so the visitor can relaunch from the same spot. */
 function Hero() {
   const t = useTranslations('app');
+  const scoutStore = typeof window !== 'undefined' ? getScoutStore() : null;
+  const mission = useSyncExternalStore(
+    scoutStore?.subscribe ?? (() => () => {}),
+    scoutStore?.getSnapshot ?? (() => null),
+    () => null,
+  );
+  if (mission) {
+    return (
+      <MissionHero mission={mission}>
+        <WishBox />
+        <div className="mt-5 flex justify-center">
+          <WebMcpBadge />
+        </div>
+        <AgentGuide />
+      </MissionHero>
+    );
+  }
   return (
     <div className="bg-brand-yellow pb-10 pt-2">
       <div className="mx-auto max-w-[900px] px-5 text-center">
@@ -335,7 +355,6 @@ function Loaded({
         onCluster={(c) => setFilter({ tags: [], town: null, cluster: c })}
       />
       <Hero />
-      <MissionBanner />
 
       <main className="mx-auto max-w-[1400px] px-5 py-8">
         {view.loadState === 'error' && (

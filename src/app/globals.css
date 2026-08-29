@@ -209,3 +209,19 @@
 @media (prefers-reduced-motion: reduce) {
   .mission-wish, .mission-chip { animation: none; }
 }
+
+/* --- Mission hero collage (29 Aug) --- */
+.mission-photo { animation: mission-photo-in 700ms ease-out backwards; }
+@keyframes mission-photo-in {
+  from { opacity: 0; transform: scale(1.04); }
+  to { opacity: 1; transform: none; }
+}
+/* Slow documentary drift; GPU transform only. */
+.mission-photo-img { animation: kenburns 18s ease-in-out infinite alternate; filter: saturate(0.9) contrast(1.05); }
+@keyframes kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.12) translate(1.5%, -1.5%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mission-photo, .mission-photo-img { animation: none; }
+}
