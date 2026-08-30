@@ -79,6 +79,7 @@
     "findings": "{count} trouvailles"
   },
   "legend": {
+    "toggle": "Légende de la carte",
     "chip": "Un lieu (pictogramme = type : hôtel, kayak, marché…)",
     "agentChip": "Affiché par l'agent (liseré jaune)",
     "flag": "Trouvaille des éclaireurs — tapez pour garder/écarter",

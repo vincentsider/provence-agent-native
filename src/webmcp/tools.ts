@@ -58,6 +58,19 @@ import {
 } from './schemas';
 import type { z } from 'zod';
 
+/** Tools whose `total` counts CATALOGUE results: only their zeros mean "the
+ *  offer is missing" and may feed the Demand Mirror's unmet-demand callout.
+ *  State-reading tools (read_visitor_wish, get_scout_reports…) legitimately
+ *  return 0 — counting those as gaps showed "Demande sans réponse" to a
+ *  visitor who had just received an answer (field bug, 30 Aug). */
+const DEMAND_TOOLS = new Set([
+  'send_scouts',
+  'filter_places',
+  'find_near',
+  'find_events',
+  'find_tonight',
+]);
+
 type Handler<S extends z.ZodType> = (
   input: z.output<S>,
   store: Store,
@@ -145,7 +158,7 @@ export function makeExecute<S extends z.ZodType>(
       getDemandLog().record(
         name,
         parsed.data as Record<string, unknown>,
-        total,
+        DEMAND_TOOLS.has(name) ? total : null,
         performance.now() - t0,
       );
       return envelope(data);

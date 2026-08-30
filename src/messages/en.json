@@ -79,6 +79,7 @@
     "findings": "{count} finds"
   },
   "legend": {
+    "toggle": "Map legend",
     "chip": "A place (pictogram = type: hotel, kayak, market…)",
     "agentChip": "Shown by the agent (yellow ring)",
     "flag": "Scout find — tap to keep/dismiss",
