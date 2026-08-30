@@ -71,7 +71,7 @@
     "label": "Describe what you are after",
     "placeholder": "Your wish… e.g. quiet village, Friday market, near the sea",
     "cta": "Send the scouts",
-    "intent": "your {count} scouts are heading out"
+    "ack": "Noted. If you are browsing with a compatible AI assistant, it will read your wish and send the scouts for you on its next turn. Without one, explore the map and the posters below."
   },
   "mission": {
     "aria": "Scout mission in progress",

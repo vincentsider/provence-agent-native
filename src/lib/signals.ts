@@ -19,8 +19,9 @@ export type VisitorSignal =
   | { kind: 'ping'; ping: Ping }
   | { kind: 'lock'; placeId: number; locked: boolean; at: number }
   | { kind: 'answer'; question: string; choice: string; at: number }
-  /** The visitor typed a wish into the page's own box (v3): the page has
-   *  already dispatched scouts for it; the agent reads it here to continue. */
+  /** The visitor typed a wish into the page's own box (v4): the page only
+   *  records it; the agent reads it here (or via read_visitor_wish) and
+   *  sends the scouts itself. */
   | { kind: 'wish'; text: string; at: number }
   | { kind: 'yield'; at: number };
 

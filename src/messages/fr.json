@@ -71,7 +71,7 @@
     "label": "Décrivez votre envie",
     "placeholder": "Votre envie… ex : village calme, marché le vendredi, près de la mer",
     "cta": "Envoyer les éclaireurs",
-    "intent": "vos {count} éclaireurs partent sur la carte"
+    "ack": "C'est noté. Si vous naviguez avec un assistant IA compatible, il lira votre envie et enverra les éclaireurs pour vous à son prochain tour. Sans assistant, explorez la carte et les affiches ci-dessous."
   },
   "mission": {
     "aria": "Mission des éclaireurs en cours",

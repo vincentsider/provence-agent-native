@@ -482,20 +482,22 @@ test.describe('v3 scouts and keepsake', () => {
   });
 });
 
-/** The wish box (29 Aug hardening): the page dispatches scouts itself. */
+/** The wish box (v4, 30 Aug): a mailbox for the agent, never its own search
+ *  engine — the page's keyword dispatch sent scouts to Saint-Rémy for "près
+ *  de la mer" (field bug), so the page now only records the wish. */
 test.describe('wish box', () => {
-  test('typing a wish launches scouts with no agent involved', async ({ page }) => {
+  test('typing a wish shows the honest ack and dispatches nothing', async ({ page }) => {
     await page.goto('/fr');
     const box = page.getByTestId('wish-box');
-    await box.getByRole('textbox').fill('un hôtel à Cassis avec parking et un marché sympa');
+    await box.getByRole('textbox').fill('un hôtel près de la mer pas trop touristique');
     await box.getByRole('button').click();
-    // Flags appear from the page's own dispatch.
-    await page.locator('.scout-flag-wrap').first().waitFor({ state: 'visible', timeout: 10_000 });
-    // And the top banner spoke.
-    await expect(page.getByTestId('agent-banner')).toBeVisible();
-    // The mission takeover: full-width band + the grid becomes the findings.
-    await expect(page.getByTestId('mission-banner')).toBeVisible();
-    await expect(page.getByTestId('mission-banner')).toContainText('parking');
+    // The honest note appears; the input clears for the next wish.
+    await expect(page.getByTestId('wish-ack')).toBeVisible();
+    await expect(box.getByRole('textbox')).toHaveValue('');
+    // And NO scouts: no flags, no mission takeover, from the page itself.
+    await page.waitForTimeout(1500);
+    await expect(page.locator('.scout-flag-wrap')).toHaveCount(0);
+    await expect(page.getByTestId('mission-banner')).not.toBeVisible();
   });
 
   test('the heartbeat tool appears once the visitor has acted', async ({ page }) => {
@@ -533,9 +535,40 @@ test.describe('wish box', () => {
 test.describe('carnet de voyage', () => {
   test('keeping a flag surfaces the carnet button; the pack renders and closes', async ({ page }) => {
     await page.goto('/fr');
-    const box = page.getByTestId('wish-box');
-    await box.getByRole('textbox').fill('un hôtel à Cassis avec parking et un marché sympa');
-    await box.getByRole('button').click();
+    // Scouts come only from the agent now (wish box v4): dispatch through
+    // the send_scouts tool, like every cooperating agent does.
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+    type Mc = {
+      getTools(): Promise<Array<{ name: string }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 20,
+      { timeout: 5_000 },
+    );
+    const sent = await page.evaluate(async () => {
+      const mc = (document as never as { modelContext: Mc }).modelContext;
+      const tools = await mc.getTools();
+      const tool = tools.find((x) => x.name === 'send_scouts');
+      if (!tool) throw new Error('send_scouts not registered');
+      return JSON.parse(
+        await mc.executeTool(
+          tool,
+          JSON.stringify({
+            mission: 'un séjour à Cassis, hôtel et un marché',
+            scouts: [
+              { label: 'hôtels à Cassis', town: 'Cassis', cluster: 'hotels' },
+              { label: "l'agenda de Cassis", town: 'Cassis', cluster: 'agenda' },
+            ],
+          }),
+        ),
+      ) as { data?: { reports?: unknown[] } };
+    });
+    expect(sent.data?.reports?.length).toBe(2);
     const flag = page.locator('.scout-flag-wrap').first();
     await flag.waitFor({ state: 'visible', timeout: 10_000 });
     await flag.click();

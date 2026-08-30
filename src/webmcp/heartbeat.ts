@@ -31,10 +31,15 @@ export interface ContextState {
 /** Pure and unit-tested: the live description the agent reads each turn. */
 export function describeContext(state: ContextState): string {
   const parts: string[] = ['LIVE PAGE STATE, read before answering anything.'];
-  if (state.wish) parts.push(`The visitor TYPED into the page: "${state.wish.slice(0, 90)}".`);
+  if (state.wish) {
+    parts.push(
+      `The visitor TYPED into the page: "${state.wish.slice(0, 90)}".` +
+        (state.mission ? '' : ' No scouts are out for it yet — interpret it and call send_scouts.'),
+    );
+  }
   if (state.mission) {
     const labels = state.mission.reports.map((r) => r.label).join(', ');
-    parts.push(`The page already dispatched ${state.mission.reports.length} scouts (${labels}) — do NOT redo these searches.`);
+    parts.push(`${state.mission.reports.length} scouts are already out (${labels}) — do NOT redo these searches.`);
   }
   if (state.kept.length > 0) {
     const names = state.kept.slice(0, 4).map((i) => i.name).join('; ');
@@ -88,8 +93,9 @@ async function reregister(): Promise<void> {
               wish: s.wish,
               mission: s.mission,
               keptSelection: s.kept,
-              instruction:
-                'The page already ran these searches. Continue from the verdicts; never re-search what a scout covered.',
+              instruction: s.mission
+                ? 'These searches already ran. Continue from the verdicts; never re-search what a scout covered.'
+                : 'No scouts are out yet. Interpret the wish and call send_scouts with 2-4 briefs.',
             },
           };
         }),
