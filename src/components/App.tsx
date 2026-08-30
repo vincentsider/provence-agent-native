@@ -11,6 +11,7 @@
  * resolves (spec 7.4).
  */
 
+import '@/webmcp/install-polyfill';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { TOOL_COUNT, registerAll } from '@/webmcp/tools';
@@ -30,6 +31,7 @@ import { WishBox } from './WishBox';
 import { MissionHero } from './MissionBanner';
 import { CarnetButton, CarnetPanel } from './CarnetPanel';
 import { MissionHistory } from './MissionHistory';
+import { TrustBadge } from './TrustBadge';
 import { getScoutStore } from '@/lib/scouts';
 import { getViewportStore } from '@/lib/viewport';
 import type { UpcomingEvent } from '@/lib/build-data';
@@ -196,8 +198,9 @@ function Hero() {
       <MissionHero mission={mission}>
         <WishBox />
         <MissionHistory />
-        <div className="mt-5 flex justify-center">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <WebMcpBadge />
+          <TrustBadge variant="compact" />
         </div>
         <AgentGuide />
       </MissionHero>
@@ -215,8 +218,9 @@ function Hero() {
         </p>
         <WishBox />
         <MissionHistory />
-        <div className="mt-5 flex justify-center">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <WebMcpBadge />
+          <TrustBadge variant="compact" />
         </div>
         <AgentGuide />
       </div>
@@ -412,6 +416,10 @@ function SiteFooter({ snapshotDate }: { snapshotDate: string | null }) {
           {' · '}
           <a className="underline hover:text-brand-yellow" href="/llms.txt">/llms.txt</a>
         </p>
+        {/* Trustwright: signed, live-verified WebMCP trust badge. */}
+        <div className="mt-4">
+          <TrustBadge />
+        </div>
       </div>
     </footer>
   );

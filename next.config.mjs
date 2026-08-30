@@ -7,17 +7,19 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
  *
  * script-src carries 'unsafe-inline' because Next.js App Router injects
  * inline bootstrap scripts on prerendered pages; there are no external script
- * hosts at all, which is the risk the CSP is really carrying. The single
- * external host pair is the OSM tile CDN, named, never wildcarded beyond its
- * own subdomains.
+ * hosts at all, which is the risk the CSP is really carrying. The named
+ * external hosts: the OSM tile CDN (imagery), myprovence.fr (catalogue
+ * photos) and trustwright.deepblocker.ai (the signed WebMCP trust badge,
+ * which re-verifies our live toolset on every load — script + API + image).
  */
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://trustwright.deepblocker.ai",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://*.tile.openstreetmap.org https://www.myprovence.fr",
-  "connect-src 'self'",
+  "img-src 'self' data: https://*.tile.openstreetmap.org https://www.myprovence.fr https://trustwright.deepblocker.ai",
+  "connect-src 'self' https://trustwright.deepblocker.ai",
   "font-src 'self'",
+  "frame-src https://trustwright.deepblocker.ai",
   "frame-ancestors 'none'",
   "base-uri 'none'",
   "object-src 'none'",
