@@ -16,6 +16,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAX_BODY_BYTES = 64 * 1024;
+const MAX_BATCH = 20;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!allowRequest(clientIpOf(request.headers))) {
@@ -55,7 +56,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const extras = buildExtras();
 
   // Streamable HTTP allows batches; answer each, drop notification replies.
+  // Bounded: the rate limiter charges per REQUEST, so an uncapped batch
+  // would smuggle hundreds of tool calls (and demand-pulse DB reads) into
+  // one token (audit, 30 Aug).
   if (Array.isArray(body)) {
+    if (body.length > MAX_BATCH) {
+      return NextResponse.json(
+        { jsonrpc: '2.0', id: null, error: { code: -32600, message: `batch too large (max ${MAX_BATCH})` } },
+        { status: 400 },
+      );
+    }
     const replies = (
       await Promise.all(
         body.map((m) => handleMcpMessage(m as Parameters<typeof handleMcpMessage>[0], sc, extras)),
@@ -86,7 +96,13 @@ function getSupabase(url: string, key: string): SupabaseClient {
   return cachedClient;
 }
 
-/** get_demand_pulse over MCP when the telemetry env is present. */
+/** get_demand_pulse over MCP when the telemetry env is present. The HTTP
+ *  twin (/api/demand-pulse) hides behind a 5-minute CDN cache; this path has
+ *  no CDN, so it carries its own 5-minute instance cache — without it every
+ *  MCP call is a fresh 5000-row read (audit, 30 Aug). */
+const PULSE_CACHE_MS = 5 * 60_000;
+let pulseCache: { at: number; value: unknown } | null = null;
+
 function buildExtras(): McpExtras {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -94,6 +110,9 @@ function buildExtras(): McpExtras {
   if (!url || !key || !workspaceId) return {};
   return {
     demandPulse: async () => {
+      if (pulseCache && Date.now() - pulseCache.at < PULSE_CACHE_MS) {
+        return pulseCache.value as ReturnType<typeof aggregatePulse>;
+      }
       const cutoff = new Date(Date.now() - PULSE_WINDOW_DAYS * 86_400_000).toISOString();
       // Same query as /api/demand-pulse, ORDER INCLUDED: past 5000 rows the
       // two surfaces must agree on which rows they aggregate (newest first).
@@ -105,7 +124,9 @@ function buildExtras(): McpExtras {
         .order('occurred_hour', { ascending: false })
         .limit(5000);
       if (error) throw new Error(error.code);
-      return aggregatePulse((data ?? []) as PulseRow[], new Date());
+      const value = aggregatePulse((data ?? []) as PulseRow[], new Date());
+      pulseCache = { at: Date.now(), value };
+      return value;
     },
   };
 }
