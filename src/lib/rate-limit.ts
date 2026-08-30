@@ -15,7 +15,14 @@ export function allowRequest(ip: string): boolean {
   const now = Date.now();
   let b = buckets.get(ip);
   if (!b) {
-    if (buckets.size >= BUCKETS_CAP) buckets.clear(); // bounded memory
+    if (buckets.size >= BUCKETS_CAP) {
+      // Evict the oldest entry, never clear(): a global flush would hand
+      // every throttled caller a fresh bucket at once (security audit #2,
+      // 30 Aug). Map iteration order = insertion order, so first() is
+      // oldest-inserted.
+      const oldest = buckets.keys().next();
+      if (!oldest.done) buckets.delete(oldest.value);
+    }
     b = { tokens: BUCKET_CAP, at: now };
     buckets.set(ip, b);
   }
@@ -27,7 +34,12 @@ export function allowRequest(ip: string): boolean {
 }
 
 export function clientIpOf(headers: Headers): string {
+  // x-real-ip FIRST: on Vercel both headers are proxy-set, but x-real-ip is
+  // single-valued by construction; leftmost x-forwarded-for is the
+  // caller-appendable slot on generic hosts (security audit #1, 30 Aug).
+  const real = headers.get('x-real-ip')?.trim();
+  if (real) return real;
   const fwd = headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0]!.trim();
-  return headers.get('x-real-ip')?.trim() ?? 'unknown';
+  return 'unknown';
 }
