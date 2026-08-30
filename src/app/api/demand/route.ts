@@ -60,7 +60,12 @@ function allow(ip: string): boolean {
   const now = Date.now();
   let b = buckets.get(ip);
   if (!b) {
-    if (buckets.size >= BUCKETS_CAP) buckets.clear(); // bounded memory
+    if (buckets.size >= BUCKETS_CAP) {
+      // Evict oldest, never clear(): a global flush un-throttles everyone
+      // at once (security audit #2, 30 Aug).
+      const oldest = buckets.keys().next();
+      if (!oldest.done) buckets.delete(oldest.value);
+    }
     b = { tokens: BUCKET_CAP, at: now };
     buckets.set(ip, b);
   }
@@ -86,9 +91,13 @@ function getSupabase(url: string, key: string): SupabaseClient {
 }
 
 function clientIp(request: NextRequest): string {
+  // x-real-ip first: single-valued and proxy-set; leftmost x-forwarded-for
+  // is the caller-appendable slot on generic hosts (security audit #1).
+  const real = request.headers.get('x-real-ip')?.trim();
+  if (real) return real;
   const fwd = request.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip')?.trim() ?? 'unknown';
+  return 'unknown';
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -99,18 +108,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return new NextResponse(null, { status: 204 });
   }
 
-  // Same-origin only. sendBeacon always attaches Origin; a third-party page
-  // beaconing junk into the aggregates gets a 403, an origin-less server
-  // client gets past this and meets the rate limiter and strict schema.
+  // Same-origin REQUIRED. The only legitimate caller is this page's own
+  // sendBeacon, which always attaches Origin; an origin-less server client
+  // has no business writing telemetry (security audit #3, 30 Aug — before
+  // this, curl could inflate the public demand pulse for real towns).
   const origin = request.headers.get('origin');
-  if (origin) {
-    try {
-      if (new URL(origin).host !== request.nextUrl.host) {
-        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-      }
-    } catch {
+  if (!origin) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  try {
+    if (new URL(origin).host !== request.nextUrl.host) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
+  } catch {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
   if (!allow(clientIp(request))) {
