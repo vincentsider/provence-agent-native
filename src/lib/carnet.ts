@@ -63,6 +63,27 @@ export function buildDefaultCarnet(
   anytimeLabel: string,
   formatDay: (iso: string) => string,
 ): Carnet {
+  // Keeps carry the request they answered (1 Sep): the carnet clusters one
+  // section per request, in the order the visitor explored — "Week-end
+  // romantique" keeps never mix with "ce soir à Marseille" keeps. Items
+  // without a request fall into the anytime section. When NO item carries a
+  // request (old sessions, direct locks), the day-grouped layout below
+  // still applies.
+  if (kept.some((i) => i.request)) {
+    const byRequest = new Map<string, ShortlistItem[]>();
+    for (const item of kept) {
+      const key = item.request ?? anytimeLabel;
+      const list = byRequest.get(key) ?? [];
+      list.push(item);
+      byRequest.set(key, list);
+    }
+    const days: CarnetDay[] = [...byRequest.entries()].map(([label, items]) => ({
+      label,
+      note: null,
+      items,
+    }));
+    return { title, days, signoff: null };
+  }
   // A record open for weeks is an "anytime" activity, not a day-1 event: a
   // year-long wine tour under "Thursday 1 January" reads wrong (field
   // screenshot, 29 Aug).

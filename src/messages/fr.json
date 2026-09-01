@@ -94,7 +94,8 @@
     "credit": "Composé avec vos choix — lieux, dates et photos du catalogue officiel Provence Tourisme",
     "sources": "Toutes les fiches renvoient vers myprovence.fr. Photos © offices de tourisme des Bouches-du-Rhône.",
     "pdf": "Télécharger en PDF",
-    "close": "Fermer"
+    "close": "Fermer",
+    "printHint": "Le bouton ouvre l'impression du navigateur : choisissez « Enregistrer en PDF ». Dans un navigateur intégré (ChatGPT, etc.) l'impression peut être bloquée ; ouvrez alors cette page dans Chrome ou Safari."
   },
   "history": {
     "title": "Vos recherches précédentes — tapez pour rejouer"

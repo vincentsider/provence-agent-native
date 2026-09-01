@@ -15,6 +15,9 @@ export interface ShortlistItem {
   /** Catalogue photo + pictogram: the carnet is built from these. */
   readonly img?: string | null;
   readonly glyph?: string;
+  /** The request this keep answered (mission text or the agent's current
+   *  search label): the carnet clusters sections around it (1 Sep). */
+  readonly request?: string | null;
 }
 
 const MAX_ITEMS = 20;

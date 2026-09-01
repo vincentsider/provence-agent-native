@@ -19,6 +19,7 @@ import { getPulseStore } from '@/lib/pulse-client';
 import { getViewportStore } from '@/lib/viewport';
 import { getScoutStore, MAX_FINDINGS, type Mission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
+import { getAgentRequest } from '@/lib/agent-context';
 import { fold } from '@/lib/types';
 import { townCentroids } from '@/lib/centroids';
 import { pickGlyph } from '@/lib/glyphs';
@@ -230,6 +231,15 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       const mission = scoutStore.getSnapshot();
       const layer = scoutLayerRef.current;
       const map = mapRef.current;
+      // Mission retired (a newer request took the stage): the flags leave
+      // with it, or the map lies about the current context (field bug 1 Sep).
+      if (!mission && lastMissionId !== null) {
+        lastMissionId = null;
+        ++epoch;
+        clearTimers();
+        layer?.clearLayers();
+        return;
+      }
       if (!mission || !layer || !map || mission.missionId === lastMissionId) return;
       lastMissionId = mission.missionId;
       const mine = ++epoch;
@@ -304,6 +314,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
               d2: f.d2,
               img: f.img,
               glyph: f.glyph,
+              request: mission.mission,
             });
             flag.getElement()?.classList.add('scout-flag-wrap--kept');
             flag.closePopup();
@@ -596,6 +607,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             d2: p.d2 ?? null,
             img: pub.image,
             glyph: pickGlyph(p, store.vocab),
+            request: getAgentRequest(),
           });
           chip.getElement()?.querySelector('.poi-chip')?.classList.add('poi-chip--kept');
           chip.closePopup();

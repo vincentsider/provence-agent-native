@@ -176,6 +176,22 @@ export class ScoutMissionStore {
     for (const fn of this.#listeners) fn();
   }
 
+  /** The stage empties: the visitor (or the agent) moved on to a different
+   *  request, so the mission banner and flags retire to history instead of
+   *  lying about the current context (field bug 1 Sep: "ce soir à
+   *  Marseille" under a romantic-weekend banner). Verdicts stay intact and
+   *  the mission remains restorable. */
+  retire(): void {
+    if (!this.#active) return;
+    this.#history = [
+      this.#active,
+      ...this.#history.filter((m) => m.missionId !== this.#active!.missionId),
+    ].slice(0, MAX_HISTORY);
+    this.#historySnapshot = [...this.#history];
+    this.#active = null;
+    for (const fn of this.#listeners) fn();
+  }
+
   /** Bring an archived mission back on stage (verdicts intact). */
   restore(missionId: string): Mission | null {
     const mission = this.#history.find((m) => m.missionId === missionId);

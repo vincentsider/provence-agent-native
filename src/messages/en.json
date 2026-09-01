@@ -94,7 +94,8 @@
     "credit": "Composed from your picks — places, dates and photos from the official Provence Tourisme catalogue",
     "sources": "Every card links to myprovence.fr. Photos © Bouches-du-Rhône tourism offices.",
     "pdf": "Download as PDF",
-    "close": "Close"
+    "close": "Close",
+    "printHint": "The button opens your browser print dialog: choose \"Save as PDF\". Embedded browsers (ChatGPT and similar) may block printing; open this page in Chrome or Safari instead."
   },
   "history": {
     "title": "Your previous searches — tap to replay"

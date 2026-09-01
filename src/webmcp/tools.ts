@@ -28,6 +28,7 @@ import type { PulseData } from '@/lib/demand-pulse';
 import { selectTonight } from '@/lib/tonight';
 import { townCentroids } from '@/lib/centroids';
 import { getScoutStore, runMission } from '@/lib/scouts';
+import { setAgentRequest } from '@/lib/agent-context';
 import { getShortlistStore } from '@/lib/shortlist';
 import { getViewportStore } from '@/lib/viewport';
 import { getPostcardStore } from '@/lib/postcard';
@@ -249,6 +250,7 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof sendScoutsInput>, store) => {
+        setAgentRequest(input.mission);
         const today = localDay();
         const mission = runMission(store, input.mission, input.scouts, today);
         getScoutStore().start(mission);
@@ -296,6 +298,14 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof filterPlacesInput>, store) => {
+        // A fresh search supersedes the mission on stage: the banner must
+        // reflect the CURRENT request, never a previous one (field bug 1 Sep).
+        setAgentRequest(intentFor('filter_places', input as Record<string, unknown>));
+        try {
+          getScoutStore().retire();
+        } catch {
+          /* client-only store */
+        }
         try {
           getPresenceBus().emit({ phase: 'focus', target: 'filters' });
           getPresenceBus().emit({ phase: 'act', tool: 'filter_places', tags: input.tags });
@@ -489,6 +499,12 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof findEventsInput>, store) => {
+        setAgentRequest(intentFor('find_events', input as Record<string, unknown>));
+        try {
+          getScoutStore().retire(); // new request, banner follows (1 Sep)
+        } catch {
+          /* client-only store */
+        }
         let from = input.from;
         let to = input.to;
         if (input.month) [from, to] = monthRange(input.month);
@@ -713,7 +729,10 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: false,
       handler: () => {
-        const mission = getScoutStore().getSnapshot();
+        // A retired mission (superseded by a newer search) still answers:
+        // its verdicts are decisions, not stage props (1 Sep).
+        const scoutStore = getScoutStore();
+        const mission = scoutStore.getSnapshot() ?? scoutStore.history()[0] ?? null;
         if (!mission) {
           return { total: 0, data: { error: 'no_mission', message: 'No scouts sent yet.' } };
         }
@@ -737,6 +756,12 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof findTonightInput>, store) => {
+        setAgentRequest(intentFor('find_tonight', input as Record<string, unknown>));
+        try {
+          getScoutStore().retire(); // new request, banner follows (1 Sep)
+        } catch {
+          /* client-only store */
+        }
         const date = input.date ?? localDay();
         const radius = input.radius_km ?? 15;
         const limit = input.limit ?? 12;

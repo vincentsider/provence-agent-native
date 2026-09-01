@@ -148,7 +148,10 @@ export function CarnetPanel() {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 border-t border-brand-ink/10 px-6 py-3 print:hidden">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-brand-ink/10 px-6 py-3 print:hidden">
+          <p className="mr-auto max-w-[420px] font-slab text-[11px] leading-snug text-brand-ink/60">
+            {t('printHint')}
+          </p>
           <button
             type="button"
             data-testid="carnet-pdf"
