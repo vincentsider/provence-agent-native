@@ -580,6 +580,10 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         // and keeps land in the same shortlist the carnet reads. Built,
         // never innerHTML'd: catalogue names stay inert text.
         const pub = store.toPublicShape(p);
+        if (getShortlistStore().getSnapshot().some((i) => i.id === pub.id)) {
+          // Redraws must not erase the visitor's decision (audit 12).
+          setTimeout(() => chip.getElement()?.querySelector('.poi-chip')?.classList.add('poi-chip--kept'), 0);
+        }
         const content = document.createElement('div');
         content.className = 'scout-popup';
         const title = document.createElement('p');
@@ -615,7 +619,9 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             d2: p.d2 ?? null,
             img: pub.image,
             glyph: pickGlyph(p, store.vocab),
-            request: getAgentRequest(),
+            // A human-driven filter is the VISITOR's exploration: stamping
+            // the agent's last label on it would misfile the keep (audit 12).
+            request: agentDriven ? getAgentRequest() : null,
           });
           chip.getElement()?.querySelector('.poi-chip')?.classList.add('poi-chip--kept');
           chip.closePopup();

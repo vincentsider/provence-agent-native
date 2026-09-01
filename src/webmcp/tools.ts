@@ -302,7 +302,7 @@ function defs(): ToolDef[] {
         // reflect the CURRENT request, never a previous one (field bug 1 Sep).
         setAgentRequest(intentFor('filter_places', input as Record<string, unknown>));
         try {
-          getScoutStore().retire();
+          getScoutStore().retireIfIdle();
         } catch {
           /* client-only store */
         }
@@ -501,7 +501,7 @@ function defs(): ToolDef[] {
       handler: (input: z.output<typeof findEventsInput>, store) => {
         setAgentRequest(intentFor('find_events', input as Record<string, unknown>));
         try {
-          getScoutStore().retire(); // new request, banner follows (1 Sep)
+          getScoutStore().retireIfIdle(); // new request, banner follows (1 Sep)
         } catch {
           /* client-only store */
         }
@@ -758,7 +758,7 @@ function defs(): ToolDef[] {
       handler: (input: z.output<typeof findTonightInput>, store) => {
         setAgentRequest(intentFor('find_tonight', input as Record<string, unknown>));
         try {
-          getScoutStore().retire(); // new request, banner follows (1 Sep)
+          getScoutStore().retireIfIdle(); // new request, banner follows (1 Sep)
         } catch {
           /* client-only store */
         }

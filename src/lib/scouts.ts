@@ -157,11 +157,19 @@ export function runMission(
 
 const MAX_HISTORY = 8;
 
+/** A new agent search only retires a mission that has sat IDLE this long.
+ *  Shorter, and the agent's own refinement searches (send_scouts then
+ *  filter_places for a restaurant, same request — field screenshot 1 Sep)
+ *  would kill the banner seconds after it appeared; longer, and a genuinely
+ *  new question inherits a stale banner. Verdict taps reset the clock. */
+export const MISSION_IDLE_MS = 120_000;
+
 export class ScoutMissionStore {
   #active: Mission | null = null;
   #history: Mission[] = [];
   #historySnapshot: readonly Mission[] = [];
   #listeners = new Set<() => void>();
+  #touchedAt = 0;
 
   start(mission: Mission): void {
     if (this.#active && this.#active.missionId !== mission.missionId) {
@@ -173,6 +181,7 @@ export class ScoutMissionStore {
     this.#history = this.#history.filter((m) => m.missionId !== mission.missionId);
     this.#historySnapshot = [...this.#history];
     this.#active = mission;
+    this.#touchedAt = Date.now();
     for (const fn of this.#listeners) fn();
   }
 
@@ -183,6 +192,7 @@ export class ScoutMissionStore {
    *  the mission remains restorable. */
   retire(): void {
     if (!this.#active) return;
+    this.#touchedAt = 0;
     this.#history = [
       this.#active,
       ...this.#history.filter((m) => m.missionId !== this.#active!.missionId),
@@ -190,6 +200,16 @@ export class ScoutMissionStore {
     this.#historySnapshot = [...this.#history];
     this.#active = null;
     for (const fn of this.#listeners) fn();
+  }
+
+  /** Retire only a mission the visitor has stopped touching: the agent's
+   *  own refinement searches arrive within seconds of the mission (or of a
+   *  verdict tap) and must not empty the stage mid-interaction. */
+  retireIfIdle(graceMs: number = MISSION_IDLE_MS, now: number = Date.now()): boolean {
+    if (!this.#active) return false;
+    if (now - this.#touchedAt < graceMs) return false;
+    this.retire();
+    return true;
   }
 
   /** Bring an archived mission back on stage (verdicts intact). */
@@ -212,6 +232,7 @@ export class ScoutMissionStore {
     });
     if (!touched) return false;
     this.#active = { ...this.#active, reports };
+    this.#touchedAt = Date.now();
     for (const fn of this.#listeners) fn();
     return true;
   }

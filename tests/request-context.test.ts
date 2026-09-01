@@ -29,6 +29,22 @@ describe('ScoutMissionStore.retire', () => {
     store.destroy();
   });
 
+  it('retireIfIdle spares a fresh mission and a mission being judged', () => {
+    const store = new ScoutMissionStore();
+    store.start(mission('m1', 'week-end romantique'));
+    const t0 = Date.now();
+    // The agent's refinement search lands seconds later: mission stays.
+    expect(store.retireIfIdle(120_000, t0 + 5_000)).toBe(false);
+    expect(store.getSnapshot()).not.toBeNull();
+    // A verdict tap resets the idle clock.
+    store.setVerdict(7, 'kept');
+    expect(store.retireIfIdle(120_000, t0 + 60_000)).toBe(false);
+    // Idle past the grace: a new request may take the stage.
+    expect(store.retireIfIdle(120_000, Date.now() + 180_000)).toBe(true);
+    expect(store.getSnapshot()).toBeNull();
+    store.destroy();
+  });
+
   it('is a no-op with nothing on stage and never duplicates history', () => {
     const store = new ScoutMissionStore();
     store.retire();
