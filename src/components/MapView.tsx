@@ -10,7 +10,7 @@
  * update; the render cap bounds DOM nodes.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
 import type { Store, ViewState } from '@/lib/store';
 import { getPresenceBus } from '@/lib/presence';
@@ -20,6 +20,7 @@ import { getViewportStore } from '@/lib/viewport';
 import { getScoutStore, MAX_FINDINGS, type Mission } from '@/lib/scouts';
 import { getShortlistStore } from '@/lib/shortlist';
 import { getAgentRequest } from '@/lib/agent-context';
+import { getPinStore } from '@/lib/pin';
 import { fold } from '@/lib/types';
 import { townCentroids } from '@/lib/centroids';
 import { pickGlyph } from '@/lib/glyphs';
@@ -54,7 +55,16 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   const pingLayerRef = useRef<LayerGroup | null>(null);
   const pulseLayerRef = useRef<LayerGroup | null>(null);
   const scoutLayerRef = useRef<LayerGroup | null>(null);
+  const agentPinLayerRef = useRef<LayerGroup | null>(null);
   const t = useTranslations('scouts');
+  // The agent's pin lives in its own store + layer so it survives later
+  // searches (field bug 1 Sep: pin invisible among identical result chips).
+  const pinStore = typeof window !== 'undefined' ? getPinStore() : null;
+  const pinned = useSyncExternalStore(
+    pinStore?.subscribe ?? (() => () => {}),
+    pinStore?.getSnapshot ?? (() => null),
+    () => null,
+  );
   const tl = useTranslations('legend');
   const [legendOpen, setLegendOpen] = useState(false);
 
@@ -75,6 +85,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       pingLayerRef.current = L.layerGroup().addTo(map);
       pulseLayerRef.current = L.layerGroup().addTo(map);
       scoutLayerRef.current = L.layerGroup().addTo(map);
+      agentPinLayerRef.current = L.layerGroup().addTo(map);
       // Publish what the human is looking at (v3, issue #614). Debounced:
       // moveend fires once per gesture, but zoom + pan chains still cluster.
       const publishViewport = () => {
@@ -112,6 +123,8 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       pulseLayerRef.current = null;
       scoutLayerRef.current?.clearLayers();
       scoutLayerRef.current = null;
+      agentPinLayerRef.current?.clearLayers();
+      agentPinLayerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -645,6 +658,83 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
       cancelled = true;
     };
   }, [store, view.highlighted, view.lastActor, mapReady]);
+
+  // The agent's pin: one unmissable marker in its own layer, popup opened,
+  // surviving later searches until replaced or dismissed (field bug 1 Sep).
+  useEffect(() => {
+    if (!mapReady) return;
+    const layer = agentPinLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!pinned) return;
+    let cancelled = false;
+    void (async () => {
+      const L = (await import('leaflet')).default;
+      if (cancelled || !agentPinLayerRef.current) return;
+      const marker = L.marker([pinned.lat, pinned.lng], {
+        zIndexOffset: 1000,
+        icon: L.divIcon({
+          className: 'ink-label-wrap',
+          html: `<span class="agent-pin">${pinned.glyph}</span>`,
+          // The ROOT covers the drawing: the 12x12 divIcon default made
+          // chips unclickable (audit pass, 1 Sep) — same rule here.
+          iconSize: [38, 38],
+          iconAnchor: [19, 19],
+        }),
+      }).addTo(layer);
+      // Built, never innerHTML'd: catalogue names stay inert text.
+      const content = document.createElement('div');
+      content.className = 'scout-popup';
+      const title = document.createElement('p');
+      title.className = 'scout-popup-title';
+      title.textContent = pinned.name;
+      const line = document.createElement('p');
+      line.className = 'scout-popup-line';
+      line.textContent = [pinned.town, pinned.d1].filter(Boolean).join(' · ');
+      const link = document.createElement('a');
+      link.href = pinned.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'myprovence.fr';
+      link.className = 'scout-popup-link';
+      const row = document.createElement('div');
+      row.className = 'scout-popup-row';
+      const keep = document.createElement('button');
+      keep.type = 'button';
+      keep.textContent = keepLabel;
+      keep.className = 'scout-popup-keep';
+      keep.addEventListener('click', () => {
+        getShortlistStore().keep({
+          id: pinned.id,
+          name: pinned.name,
+          town: pinned.town ?? '',
+          url: pinned.url,
+          d1: pinned.d1,
+          d2: pinned.d2,
+          img: pinned.img,
+          glyph: pinned.glyph,
+          request: getAgentRequest(),
+        });
+        marker.getElement()?.querySelector('.agent-pin')?.classList.add('agent-pin--kept');
+        marker.closePopup();
+      });
+      const dismiss = document.createElement('button');
+      dismiss.type = 'button';
+      dismiss.textContent = dismissLabel;
+      dismiss.className = 'scout-popup-dismiss';
+      dismiss.addEventListener('click', () => {
+        getShortlistStore().remove(pinned.id);
+        getPinStore().clear();
+      });
+      row.append(keep, dismiss);
+      content.append(title, line, link, row);
+      marker.bindPopup(content, { closeButton: false, offset: [0, -22] });
+      marker.openPopup();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pinned, mapReady, keepLabel, dismissLabel]);
 
   return (
     <div className="relative">

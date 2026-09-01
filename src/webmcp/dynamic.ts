@@ -20,6 +20,8 @@
 import { getStore } from '@/lib/store';
 import { getViewportStore } from '@/lib/viewport';
 import { fold } from '@/lib/types';
+import { getPinStore } from '@/lib/pin';
+import { pickGlyph } from '@/lib/glyphs';
 import { pinVisiblePlaceInput, toJsonSchema } from './schemas';
 import { makeExecute } from './tools';
 import { recordRegistration } from './status';
@@ -107,6 +109,26 @@ function buildExecute(schemaNames: ReadonlyMap<string, number>) {
       store.setHighlightedIds([id], 'agent');
       if (place.lat !== null && place.lng !== null) {
         store.setView({ lat: place.lat, lng: place.lng }, 14, 'agent');
+        // The pin gets its OWN persistent marker (field bug 1 Sep: one chip
+        // among 29 identical ones, wiped by the next search, read as "the
+        // map never changed"). Theatre must never cost the tool.
+        try {
+          const pub = store.toPublicShape(place);
+          getPinStore().set({
+            id: pub.id,
+            name: pub.name,
+            town: pub.town,
+            url: pub.url,
+            lat: place.lat,
+            lng: place.lng,
+            d1: place.d1 ?? null,
+            d2: place.d2 ?? null,
+            img: pub.image,
+            glyph: pickGlyph(place, store.vocab),
+          });
+        } catch {
+          /* theatre only */
+        }
       }
       return { total: 1, data: { pinned: store.toPublicShape(place) } };
     },

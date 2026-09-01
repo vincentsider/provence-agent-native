@@ -11,10 +11,11 @@ import { buildDefaultCarnet } from '@/lib/carnet';
 import { getAgentRequest, setAgentRequest } from '@/lib/agent-context';
 import type { ShortlistItem } from '@/lib/shortlist';
 
-const mission = (id: string, text: string): Mission => ({
+const mission = (id: string, text: string, towns: string[] = []): Mission => ({
   missionId: id,
   mission: text,
   reports: [{ scoutId: 's1', label: 'l1', total: 1, findings: [], verdicts: { 7: 'kept' } }],
+  towns,
 });
 
 describe('ScoutMissionStore.retire', () => {
@@ -42,6 +43,28 @@ describe('ScoutMissionStore.retire', () => {
     // Idle past the grace: a new request may take the stage.
     expect(store.retireIfIdle(120_000, Date.now() + 180_000)).toBe(true);
     expect(store.getSnapshot()).toBeNull();
+    store.destroy();
+  });
+
+  it('retireForNewContext: a different town retires NOW, same town waits for idle', () => {
+    const store = new ScoutMissionStore();
+    store.start(mission('m1', 'séjour à Tarascon', ['tarascon']));
+    // Same town seconds later: a refinement, mission stays.
+    expect(store.retireForNewContext('Tarascon')).toBe(false);
+    expect(store.getSnapshot()).not.toBeNull();
+    // Town-less search inside the grace: also spared.
+    expect(store.retireForNewContext(undefined)).toBe(false);
+    // A DIFFERENT town is a context switch: retires immediately, no grace.
+    expect(store.retireForNewContext('Marseille')).toBe(true);
+    expect(store.getSnapshot()).toBeNull();
+    store.destroy();
+  });
+
+  it('retireForNewContext falls back to the idle grace for town-less missions', () => {
+    const store = new ScoutMissionStore();
+    store.start(mission('m1', 'week-end romantique'));
+    expect(store.retireForNewContext('Marseille')).toBe(false); // fresh, no mission towns
+    expect(store.retireForNewContext('Marseille', Date.now() + 180_000)).toBe(true);
     store.destroy();
   });
 

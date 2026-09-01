@@ -10,7 +10,8 @@
     "webmcpPartial": "Site tools: {ok} registered, {failed} rejected by the browser.",
     "brandTop": "The Provence Tourisme media, open to agents",
     "heroCrumb": "myprovence.fr › the guides",
-    "heroTitle": "The Provence guides"
+    "heroTitle": "The Provence guides",
+    "currentRequest": "Current request"
   },
   "clusters": {
     "all": "All",

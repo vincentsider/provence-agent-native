@@ -202,6 +202,13 @@
 }
 
 /* --- Mission hero collage (29 Aug) --- */
+/* Zero-photo missions get the brand weave, never a bare petrol band. */
+.mission-hero-fallback {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 229, 0, 0.07) 0 14px, transparent 14px 42px),
+    repeating-linear-gradient(45deg, rgba(238, 110, 98, 0.06) 0 14px, transparent 14px 42px),
+    #002731;
+}
 .mission-photo { animation: mission-photo-in 700ms ease-out backwards; }
 @keyframes mission-photo-in {
   from { opacity: 0; transform: scale(1.04); }
@@ -239,6 +246,33 @@
 .poi-chip--kept {
   background: #ffe500;
   box-shadow: 0 0 0 2px #002731 inset;
+}
+/* The agent's pin (1 Sep): unmissable by construction — larger than every
+   other marker, brand yellow on petrol, drop-in bounce. */
+.agent-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffe500;
+  border: 3px solid #002731;
+  box-shadow: 0 0 0 3px #ffe500, 0 2px 6px rgba(0, 39, 49, 0.5);
+  font-size: 19px;
+  line-height: 1;
+  animation: agent-pin-in 450ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.agent-pin--kept {
+  background: #002731;
+  box-shadow: 0 0 0 3px #ffe500, 0 2px 6px rgba(0, 39, 49, 0.5);
+}
+@keyframes agent-pin-in {
+  0% { transform: scale(0) translateY(-14px); }
+  100% { transform: scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-pin { animation: none; }
 }
 .scout-flag-glyph {
   display: flex;

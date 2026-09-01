@@ -28,8 +28,11 @@ import type { PulseData } from '@/lib/demand-pulse';
 import { selectTonight } from '@/lib/tonight';
 import { townCentroids } from '@/lib/centroids';
 import { getScoutStore, runMission } from '@/lib/scouts';
-import { setAgentRequest } from '@/lib/agent-context';
-import { getShortlistStore } from '@/lib/shortlist';
+import { getPinStore } from '@/lib/pin';
+import { pickGlyph } from '@/lib/glyphs';
+import { getAgentRequest, setAgentRequest } from '@/lib/agent-context';
+import { deriveViewportContext } from '@/lib/viewport-context';
+import { getShortlistStore, type ShortlistItem } from '@/lib/shortlist';
 import { getViewportStore } from '@/lib/viewport';
 import { getPostcardStore } from '@/lib/postcard';
 import { composeCarnet, getCarnetStore } from '@/lib/carnet';
@@ -189,6 +192,47 @@ export function makeExecute<S extends z.ZodType>(
   };
 }
 
+/** The visitor's CHOICES, not just their GARDER taps (field bug 1 Sep: a
+ *  session of pins and locks ended with the postcard refusing on
+ *  'empty_selection'). Locked cards and the agent's accepted pin are
+ *  adopted into the shortlist — the single source of truth the postcard
+ *  footer and carnet render — then the live shortlist is returned.
+ *  Bounded by the shortlist's own cap; every failure is theatre-only. */
+function adoptChoicesIntoShortlist(store: Store): readonly ShortlistItem[] {
+  const shortlist = getShortlistStore();
+  const seen = new Set(shortlist.getSnapshot().map((i) => i.id));
+  const adopt = (id: number, request: string | null) => {
+    if (seen.has(id)) return;
+    const place = store.getByIdOrUrl({ id });
+    if (!place) return;
+    const pub = store.toPublicShape(place);
+    seen.add(id);
+    shortlist.keep({
+      id: pub.id,
+      name: pub.name,
+      town: pub.town ?? '',
+      url: pub.url,
+      d1: place.d1 ?? null,
+      d2: place.d2 ?? null,
+      img: pub.image,
+      glyph: pickGlyph(place, store.vocab),
+      request,
+    });
+  };
+  try {
+    const pin = getPinStore().getSnapshot();
+    if (pin) adopt(pin.id, getAgentRequest());
+  } catch {
+    /* client-only store */
+  }
+  try {
+    for (const id of getSignalsLog().lockedIds()) adopt(id, null);
+  } catch {
+    /* client-only store */
+  }
+  return shortlist.getSnapshot();
+}
+
 /** The visitor's own calendar day (their timezone, not UTC). */
 function localDay(): string {
   const d = new Date();
@@ -302,7 +346,7 @@ function defs(): ToolDef[] {
         // reflect the CURRENT request, never a previous one (field bug 1 Sep).
         setAgentRequest(intentFor('filter_places', input as Record<string, unknown>));
         try {
-          getScoutStore().retireIfIdle();
+          getScoutStore().retireForNewContext(input.town);
         } catch {
           /* client-only store */
         }
@@ -331,6 +375,10 @@ function defs(): ToolDef[] {
             offset: input.offset,
             truncated: total > input.offset + shaped.length,
             results: shaped,
+            instruction:
+              'The shared grid now shows ALL matches. To spotlight the specific picks ' +
+              'you cite in your answer, call highlight_places with their ids; to feature ' +
+              'one single choice, pin_visible_place.',
           },
         };
       },
@@ -501,7 +549,7 @@ function defs(): ToolDef[] {
       handler: (input: z.output<typeof findEventsInput>, store) => {
         setAgentRequest(intentFor('find_events', input as Record<string, unknown>));
         try {
-          getScoutStore().retireIfIdle(); // new request, banner follows (1 Sep)
+          getScoutStore().retireForNewContext(input.town); // new request, banner follows (1 Sep)
         } catch {
           /* client-only store */
         }
@@ -758,7 +806,7 @@ function defs(): ToolDef[] {
       handler: (input: z.output<typeof findTonightInput>, store) => {
         setAgentRequest(intentFor('find_tonight', input as Record<string, unknown>));
         try {
-          getScoutStore().retireIfIdle(); // new request, banner follows (1 Sep)
+          getScoutStore().retireForNewContext(input.town); // new request, banner follows (1 Sep)
         } catch {
           /* client-only store */
         }
@@ -829,10 +877,12 @@ function defs(): ToolDef[] {
       name: 'get_visitor_view',
       title: 'Ce que le visiteur regarde',
       description:
-        "The visitor's CURRENT context, live: map viewport, zoom, the filters they set by " +
-        'hand, their kept selection, and a sample of place names visible on their screen. ' +
-        'Call this FIRST when they say \"here\", \"around this\", \"what I\'m looking at\", or ' +
-        'before proposing anything, so your answer matches what is in front of them.',
+        "The visitor's CURRENT context, live: map viewport with the TOWNS it frames " +
+        '(townsInView, ranked; dominantTown when one leads), zoom, hand-set filters, ' +
+        'kept selection, and visible place names. Use when they say "here", "around ' +
+        'this", "what am I looking at", and before proposing anything. The viewport is ' +
+        "the visitor's true focus: a zoom on one town with the town filter still on " +
+        '"all towns" means THAT town, dominantTown says which.',
       schema: getVisitorViewInput,
       readOnly: true,
       untrusted: false,
@@ -851,10 +901,16 @@ function defs(): ToolDef[] {
             }
           }
         }
+        const context = deriveViewportContext(store.catalog, store.vocab, vp.bounds);
         return {
           total: visible.length,
           data: {
             viewport: vp.bounds ? { ...vp.bounds, zoom: vp.zoom } : null,
+            // The viewport IS the visitor's focus: derived here because raw
+            // bounds mean nothing to a model (field bug 1 Sep, the agent
+            // answered "no city selected" over a zoom on one town).
+            townsInView: context.townsInView,
+            dominantTown: context.dominantTown,
             humanFilter: vp.filter,
             resultTotal: view.total,
             highlightedCount: view.highlighted.length,
@@ -869,24 +925,25 @@ function defs(): ToolDef[] {
       name: 'write_postcard',
       title: 'La carte postale du futur',
       description:
-        'Compose the closing keepsake: a short letter written from day 2-3 of the trip, ' +
-        "first person, French, using ONLY what the visitor KEPT (their scout flags — check " +
-        'get_scout_reports first). The factual footer (places, towns, dates, links) is ' +
-        'printed automatically from their selection; your body text is the prose on top. ' +
-        'Refuses while the selection is empty.',
+        'Composes the closing keepsake: a short letter from day 2-3 of the trip, first ' +
+        "person, in the visitor's language, grounded ONLY in their choices — kept flags, " +
+        'locked cards and the accepted pin all count. The factual footer (places, towns, ' +
+        'dates, links) prints automatically from that selection; the body text is the ' +
+        'prose on top. Displays full-screen on the page; refuses while no choice exists.',
       schema: writePostcardInput,
       readOnly: false,
       untrusted: false,
-      handler: (input: z.output<typeof writePostcardInput>) => {
-        const selection = getShortlistStore().getSnapshot();
+      handler: (input: z.output<typeof writePostcardInput>, store) => {
+        const selection = adoptChoicesIntoShortlist(store);
         if (selection.length === 0) {
           return {
             total: 0,
             data: {
               error: 'empty_selection',
               message:
-                'The visitor has not kept anything yet. Send scouts (send_scouts) and let ' +
-                'them keep flags first.',
+                'The visitor has not chosen anything yet: no kept flag (GARDER), no ' +
+                'locked card, no accepted pin. Send scouts or pin a place and ask them ' +
+                'to keep what they like, then compose.',
             },
           };
         }
@@ -901,23 +958,25 @@ function defs(): ToolDef[] {
       name: 'compose_carnet',
       title: 'Le carnet de voyage',
       description:
-        "Once the visitor has KEPT flags (their agreed plan), compose the briefing pack: " +
-        'a print-ready carnet de voyage with the real photographs, one section per day. ' +
-        'Reference ONLY kept item ids (check get_scout_reports or read_visitor_wish ' +
-        'first — unknown ids are refused with the valid list). Assign dated events to ' +
-        'their day, places to arrival/anytime sections; write day labels and notes in ' +
-        "the visitor's language. The visitor gets a Download-PDF button.",
+        "Composes the briefing pack from the visitor's choices (kept flags, locked " +
+        'cards, accepted pin): a print-ready carnet de voyage with the real photographs, ' +
+        'one section per day. Reference ONLY ids from that selection — unknown ids are ' +
+        'refused with the valid list. Assign dated events to their day, places to ' +
+        "arrival/anytime sections; day labels and notes in the visitor's language. The " +
+        'visitor gets a Download-PDF button.',
       schema: composeCarnetInput,
       readOnly: false,
       untrusted: false,
-      handler: (input: z.output<typeof composeCarnetInput>) => {
-        const kept = getShortlistStore().getSnapshot();
+      handler: (input: z.output<typeof composeCarnetInput>, store) => {
+        const kept = adoptChoicesIntoShortlist(store);
         if (kept.length === 0) {
           return {
             total: 0,
             data: {
               error: 'empty_selection',
-              message: 'Nothing kept yet: send scouts and let the visitor keep flags first.',
+              message:
+                'Nothing chosen yet: no kept flag (GARDER), no locked card, no accepted ' +
+                'pin. Send scouts or pin a place first.',
             },
           };
         }

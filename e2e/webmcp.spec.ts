@@ -423,11 +423,19 @@ test.describe('v3 scouts and keepsake', () => {
     const view = await call('get_visitor_view', {});
     expect(view.data?.viewport).not.toBeNull();
     expect(view.data?.humanFilter).toMatchObject({ cluster: null });
+    // The page derives the towns the viewport frames (field bug 1 Sep:
+    // raw bounds read as "no city selected" to the agent).
+    expect(Array.isArray(view.data?.townsInView)).toBe(true);
+    expect('dominantTown' in (view.data ?? {})).toBe(true);
 
-    const tonight = await call('find_tonight', {});
+    const tonight = await call('find_tonight', { town: 'Marseille' });
     expect(typeof view.data).toBe('object');
     expect(tonight.data?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Array.isArray(tonight.data?.events)).toBe(true);
+
+    // The masthead strip follows the agent's current request.
+    await expect(page.getByTestId('request-strip')).toBeVisible();
+    await expect(page.getByTestId('request-strip')).toContainText('Marseille');
   });
 
   test('pin_visible_place exists and only accepts what is on screen', async ({ page }) => {

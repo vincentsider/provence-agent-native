@@ -16,6 +16,7 @@
 import { useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { getScoutStore, type Mission } from '@/lib/scouts';
+import { collageLayout } from '@/lib/collage';
 
 const TINTS = ['#FFE500', '#EE6E62', '#E63521', '#7A6A00'] as const;
 const MAX_PHOTOS = 6;
@@ -39,6 +40,7 @@ export function missionPhotos(mission: Mission): string[] {
 export function MissionHero({ mission, children }: { mission: Mission; children?: React.ReactNode }) {
   const t = useTranslations('mission');
   const photos = missionPhotos(mission);
+  const layout = collageLayout(photos.length);
 
   return (
     <div
@@ -46,10 +48,12 @@ export function MissionHero({ mission, children }: { mission: Mission; children?
       aria-label={t('aria')}
       className="relative overflow-hidden border-y-[6px] border-brand-yellow bg-brand-petrol"
     >
-      {/* The destination floods the masthead: real catalogue photographs. */}
-      {photos.length > 0 && (
-        <div aria-hidden className="absolute inset-0 grid grid-cols-2 md:grid-cols-3">
-          {photos.map((src, i) => (
+      {/* The destination floods the masthead: real catalogue photographs.
+          No photos at all: a woven brand pattern, never a bare dark band. */}
+      {!layout && <div aria-hidden className="mission-hero-fallback absolute inset-0" />}
+      {layout && (
+        <div aria-hidden className={`absolute inset-0 grid ${layout.cols}`}>
+          {photos.slice(0, layout.n).map((src, i) => (
             <div key={src} className="mission-photo relative overflow-hidden" style={{ animationDelay: `${i * 260}ms` }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

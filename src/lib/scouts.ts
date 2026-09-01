@@ -11,6 +11,7 @@
 
 import type { Store } from './store';
 import { pickGlyph } from './glyphs';
+import { fold } from './types';
 import type { ClusterKey, FilterInput } from './types';
 
 /** The two Store capabilities a mission needs; narrow so tests can stub it. */
@@ -60,6 +61,9 @@ export interface Mission {
   readonly missionId: string;
   readonly mission: string;
   readonly reports: readonly ScoutReport[];
+  /** Folded town names the briefs targeted: a NEW search naming a town
+   *  outside this list is a context switch and retires immediately. */
+  readonly towns?: readonly string[];
 }
 
 export const MAX_SCOUTS = 4;
@@ -152,7 +156,8 @@ export function runMission(
       verdicts: Object.fromEntries(findings.map((f) => [f.id, 'pending' as Verdict])),
     };
   });
-  return { missionId: `m-${Date.now().toString(36)}`, mission, reports };
+  const towns = [...new Set(briefs.map((b) => b.town).filter((t): t is string => !!t).map(fold))];
+  return { missionId: `m-${Date.now().toString(36)}`, mission, reports, towns };
 }
 
 const MAX_HISTORY = 8;
@@ -210,6 +215,20 @@ export class ScoutMissionStore {
     if (now - this.#touchedAt < graceMs) return false;
     this.retire();
     return true;
+  }
+
+  /** A search naming a town OUTSIDE the mission's own towns is a context
+   *  switch ("ce soir à Marseille" under a Tarascon banner — field bug
+   *  1 Sep): retire immediately. Same-town or town-less searches are
+   *  refinements and only retire after the idle grace. */
+  retireForNewContext(town: string | undefined, now: number = Date.now()): boolean {
+    if (!this.#active) return false;
+    const missionTowns = this.#active.towns ?? [];
+    if (town && missionTowns.length > 0 && !missionTowns.includes(fold(town))) {
+      this.retire();
+      return true;
+    }
+    return this.retireIfIdle(MISSION_IDLE_MS, now);
   }
 
   /** Bring an archived mission back on stage (verdicts intact). */

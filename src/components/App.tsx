@@ -19,6 +19,7 @@ import { startViewportTool } from '@/webmcp/dynamic';
 import { startWishHeartbeat } from '@/webmcp/heartbeat';
 import { getServerWebMcpStatus, getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
+import { getAgentRequest, subscribeAgentRequest } from '@/lib/agent-context';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
 import { FacetPanel, type UiFilter } from './FacetPanel';
 import { PlaceList } from './PlaceList';
@@ -196,6 +197,7 @@ function Hero() {
   if (mission) {
     return (
       <MissionHero mission={mission}>
+        <RequestStrip hideWhen={mission.mission.trim().slice(0, 80)} />
         <WishBox />
         <MissionHistory />
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
@@ -216,6 +218,7 @@ function Hero() {
         <p className="mx-auto mt-4 max-w-[640px] font-slab text-[17px] leading-relaxed text-brand-ink/90">
           {t('subtitle')}
         </p>
+        <RequestStrip />
         <WishBox />
         <MissionHistory />
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
@@ -225,6 +228,24 @@ function Hero() {
         <AgentGuide />
       </div>
     </div>
+  );
+}
+
+/** The masthead follows the conversation (field bug 1 Sep: a new request
+ *  left the old banner or a blank). One line, live: what the agent is
+ *  working on right now. Renders nothing until an agent has searched. */
+function RequestStrip({ hideWhen }: { hideWhen?: string | null }) {
+  const t = useTranslations('app');
+  const label = useSyncExternalStore(subscribeAgentRequest, getAgentRequest, () => null);
+  if (!label || label === hideWhen) return null;
+  return (
+    <p
+      data-testid="request-strip"
+      className="mx-auto mt-4 inline-block bg-brand-petrol px-3 py-1.5 font-slab text-[13px] text-white"
+    >
+      <span className="display-caps mr-2 text-[11px] text-brand-yellow">{t('currentRequest')}</span>
+      {label}
+    </p>
   );
 }
 
