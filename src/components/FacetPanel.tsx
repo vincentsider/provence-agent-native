@@ -24,11 +24,17 @@ export function FacetPanel({
   filter,
   onChange,
   total,
+  agentTown = null,
 }: {
   store: Store;
   filter: UiFilter;
   onChange: (f: UiFilter) => void;
   total: number;
+  /** Town the agent's CURRENT search targets: shown as the dropdown's
+   *  selected value when the human has not picked one, so an explicit
+   *  "à Marseille" never displays as "Toutes les villes" (field feedback
+   *  1 Sep). Display only — the human's own choice always wins. */
+  agentTown?: string | null;
 }) {
   const t = useTranslations('filters');
   const [query, setQuery] = useState('');
@@ -90,6 +96,13 @@ export function FacetPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, store.vocab]);
 
+  // Fold-match the agent's town against the visible option list so
+  // "marseille" still selects "Marseille"; no match, no display.
+  const townDisplay = useMemo(() => {
+    if (!agentTown || filter.town) return null;
+    return towns.find((tn) => fold(tn) === fold(agentTown)) ?? null;
+  }, [agentTown, filter.town, towns]);
+
   const toggleTag = (slug: string) => {
     const has = filter.tags.includes(slug);
     onChange({
@@ -110,7 +123,7 @@ export function FacetPanel({
       <label className="block">
         <span className="sr-only">{t('town')}</span>
         <select
-          value={filter.town ?? ''}
+          value={filter.town ?? townDisplay ?? ''}
           onChange={(e) => onChange({ ...filter, town: e.target.value || null })}
           className="w-full border border-brand-ink/30 bg-white px-2 py-2 font-slab text-[14px] focus:border-brand-ink focus:outline-none"
         >

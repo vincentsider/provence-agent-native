@@ -77,7 +77,9 @@
   "mission": {
     "aria": "Mission des éclaireurs en cours",
     "kicker": "Mission en cours — vos éclaireurs sur la carte",
-    "findings": "{count} trouvailles"
+    "findings": "{count} trouvailles",
+    "searchKicker": "Recherche en cours — les résultats sur la carte",
+    "searchAria": "La recherche en cours de l'agent"
   },
   "legend": {
     "toggle": "Légende de la carte",

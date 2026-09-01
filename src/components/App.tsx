@@ -19,7 +19,7 @@ import { startViewportTool } from '@/webmcp/dynamic';
 import { startWishHeartbeat } from '@/webmcp/heartbeat';
 import { getServerWebMcpStatus, getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
-import { getAgentRequest, subscribeAgentRequest } from '@/lib/agent-context';
+import { getAgentRequest, getAgentTown, subscribeAgentRequest } from '@/lib/agent-context';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
 import { FacetPanel, type UiFilter } from './FacetPanel';
 import { PlaceList } from './PlaceList';
@@ -29,7 +29,7 @@ import { AgentPresence } from './AgentPresence';
 import { ElicitationCards } from './ElicitationCards';
 import { PostcardPanel } from './PostcardPanel';
 import { WishBox } from './WishBox';
-import { MissionHero } from './MissionBanner';
+import { MissionHero, RequestHero } from './MissionBanner';
 import { CarnetButton, CarnetPanel } from './CarnetPanel';
 import { MissionHistory } from './MissionHistory';
 import { TrustBadge } from './TrustBadge';
@@ -194,6 +194,29 @@ function Hero() {
     scoutStore?.getSnapshot ?? (() => null),
     () => null,
   );
+  // Same SSR guard as the scout store: the Hero also renders in the server
+  // shell fetch-only agents read, where the client Store must not exist.
+  const heroStore = typeof window !== 'undefined' ? getStore() : null;
+  const view = useSyncExternalStore(
+    heroStore?.subscribe ?? (() => () => {}),
+    heroStore?.getView ?? (() => null),
+    () => null,
+  );
+  const requestLabel = useSyncExternalStore(subscribeAgentRequest, getAgentRequest, () => null);
+  // A search takes the stage like a mission does (field feedback 1 Sep:
+  // "il a encore oublié de changer la bannière" — the small strip was not
+  // enough): request text over the real photographs of what was found.
+  const searchPhotos =
+    heroStore && !mission && requestLabel && view?.lastActor === 'agent' && view.highlighted.length > 0
+      ? view.highlighted
+          .slice(0, 12)
+          .map((i) => {
+            const p = heroStore.catalog.places[i];
+            return p ? heroStore.toPublicShape(p).image : null;
+          })
+          .filter((img): img is string => !!img)
+          .slice(0, 6)
+      : null;
   if (mission) {
     return (
       <MissionHero mission={mission}>
@@ -206,6 +229,19 @@ function Hero() {
         </div>
         <AgentGuide />
       </MissionHero>
+    );
+  }
+  if (!mission && requestLabel && searchPhotos !== null) {
+    return (
+      <RequestHero title={requestLabel} photos={searchPhotos}>
+        <WishBox />
+        <MissionHistory />
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <WebMcpBadge />
+          <TrustBadge variant="compact" />
+        </div>
+        <AgentGuide />
+      </RequestHero>
     );
   }
   return (
@@ -346,6 +382,7 @@ function Loaded({
   const tf = useTranslations('footer');
   const store = getStore();
   const view: ViewState = useSyncExternalStore(store.subscribe, store.getView, store.getView);
+  const agentTown = useSyncExternalStore(subscribeAgentRequest, getAgentTown, () => null);
   const [filter, setFilter] = useState<UiFilter>(EMPTY_FILTER);
 
   // Human-driven filtering goes through the exact same store call the agent
@@ -395,7 +432,13 @@ function Loaded({
         )}
 
         <div className="grid gap-8 lg:grid-cols-[250px_minmax(0,1fr)_400px]">
-          <FacetPanel store={store} filter={filter} onChange={setFilter} total={view.total} />
+          <FacetPanel
+            store={store}
+            filter={filter}
+            onChange={setFilter}
+            total={view.total}
+            agentTown={view.lastActor === 'agent' ? agentTown : null}
+          />
           <PlaceList store={store} view={view} />
           <div className="space-y-6">
             <MapView store={store} view={view} />

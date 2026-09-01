@@ -294,7 +294,8 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof sendScoutsInput>, store) => {
-        setAgentRequest(input.mission);
+        const scoutTowns = [...new Set(input.scouts.map((b) => b.town).filter(Boolean))];
+        setAgentRequest(input.mission, scoutTowns.length === 1 ? scoutTowns[0] : null);
         const today = localDay();
         const mission = runMission(store, input.mission, input.scouts, today);
         getScoutStore().start(mission);
@@ -344,7 +345,7 @@ function defs(): ToolDef[] {
       handler: (input: z.output<typeof filterPlacesInput>, store) => {
         // A fresh search supersedes the mission on stage: the banner must
         // reflect the CURRENT request, never a previous one (field bug 1 Sep).
-        setAgentRequest(intentFor('filter_places', input as Record<string, unknown>));
+        setAgentRequest(intentFor('filter_places', input as Record<string, unknown>), input.town ?? null);
         try {
           getScoutStore().retireForNewContext(input.town);
         } catch {
@@ -547,7 +548,7 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof findEventsInput>, store) => {
-        setAgentRequest(intentFor('find_events', input as Record<string, unknown>));
+        setAgentRequest(intentFor('find_events', input as Record<string, unknown>), input.town ?? null);
         try {
           getScoutStore().retireForNewContext(input.town); // new request, banner follows (1 Sep)
         } catch {
@@ -804,7 +805,7 @@ function defs(): ToolDef[] {
       readOnly: true,
       untrusted: true,
       handler: (input: z.output<typeof findTonightInput>, store) => {
-        setAgentRequest(intentFor('find_tonight', input as Record<string, unknown>));
+        setAgentRequest(intentFor('find_tonight', input as Record<string, unknown>), input.town ?? null);
         try {
           getScoutStore().retireForNewContext(input.town); // new request, banner follows (1 Sep)
         } catch {
@@ -850,7 +851,12 @@ function defs(): ToolDef[] {
           limit: 800,
           offset: 0,
         });
-        const shaped = selectTonight(places, center, radius, limit).map((pick) => ({
+        const centroids = townCentroids(store.catalog, store.vocab);
+        const townFallback = (p: (typeof places)[number]) => {
+          const town = p.t >= 0 ? store.vocab.towns[p.t] : undefined;
+          return (town && centroids.get(fold(town))) || null;
+        };
+        const shaped = selectTonight(places, center, radius, limit, townFallback).map((pick) => ({
           ...store.toPublicShape(pick.place),
           distance_km: pick.distanceKm,
         }));

@@ -77,7 +77,9 @@
   "mission": {
     "aria": "Scout mission in progress",
     "kicker": "Mission in progress — your scouts on the map",
-    "findings": "{count} finds"
+    "findings": "{count} finds",
+    "searchKicker": "Search in progress — results on the map",
+    "searchAria": "The agent's current search"
   },
   "legend": {
     "toggle": "Map legend",

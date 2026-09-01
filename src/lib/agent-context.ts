@@ -10,18 +10,28 @@
  */
 
 let last: string | null = null;
+let lastTown: string | null = null;
 const listeners = new Set<() => void>();
 
-export function setAgentRequest(label: string | null): void {
+export function setAgentRequest(label: string | null, town?: string | null): void {
   const trimmed = label?.trim().slice(0, 80) ?? null;
   const next = trimmed && trimmed.length > 0 ? trimmed : null;
-  if (next === last) return;
+  const nextTown = town?.trim().slice(0, 80) || null;
+  if (next === last && nextTown === lastTown) return;
   last = next;
+  lastTown = nextTown;
   for (const fn of listeners) fn();
 }
 
 export function getAgentRequest(): string | null {
   return last;
+}
+
+/** The town the agent's current search explicitly targets, when it names
+ *  one (field feedback 1 Sep: "explicit on a city means the town filter
+ *  must SHOW that city, never 'all towns'"). */
+export function getAgentTown(): string | null {
+  return lastTown;
 }
 
 export function subscribeAgentRequest(fn: () => void): () => void {

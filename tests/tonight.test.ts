@@ -36,17 +36,28 @@ describe('selectTonight', () => {
     expect(picks[0]!.distanceKm).toBeNull();
   });
 
-  it('with a center, distance rules and the radius brakes', () => {
+  it('with a center, distance rules and the radius brakes — for GPS-less events too', () => {
     const center = { lat: 43.3, lng: 5.37 };
     const picks = selectTonight([FARAWAY, CONCERT, PERMANENT, NO_GEO], center, 15, 10);
-    // FARAWAY (~100km) is out; nearest first; coordinate-less events last.
+    // FARAWAY (~100km) is out; nearest first; a coordinate-less event with
+    // no resolvable town is OUT too (field bug 1 Sep: GPS-less expos from
+    // 70km away answered "tonight near Marseille").
     expect(picks.map((p) => p.place.n)).toEqual([
       'Exposition permanente',
       'Concert du soir',
-      'Sans coordonnées',
     ]);
     expect(picks[0]!.distanceKm).toBe(0);
-    expect(picks[2]!.distanceKm).toBeNull();
+  });
+
+  it('a GPS-less event rides its town centroid: in-radius stays, far drops', () => {
+    const center = { lat: 43.3, lng: 5.37 };
+    const near = { lat: 43.31, lng: 5.38 };
+    const far = { lat: 44.05, lng: 6.2 };
+    const inTown = selectTonight([NO_GEO], center, 15, 10, () => near);
+    expect(inTown).toHaveLength(1);
+    expect(inTown[0]!.distanceKm).not.toBeNull();
+    const outTown = selectTonight([NO_GEO], center, 15, 10, () => far);
+    expect(outTown).toHaveLength(0);
   });
 
   it('caps at limit', () => {

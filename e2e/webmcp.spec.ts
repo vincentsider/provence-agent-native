@@ -433,9 +433,13 @@ test.describe('v3 scouts and keepsake', () => {
     expect(tonight.data?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Array.isArray(tonight.data?.events)).toBe(true);
 
-    // The masthead strip follows the agent's current request.
-    await expect(page.getByTestId('request-strip')).toBeVisible();
-    await expect(page.getByTestId('request-strip')).toContainText('Marseille');
+    // The masthead follows the agent's current request: with results on
+    // stage the big banner takes over (field feedback 1 Sep), the small
+    // strip is only the no-results fallback.
+    const banner = page.getByTestId('request-banner');
+    const strip = page.getByTestId('request-strip');
+    await expect(banner.or(strip)).toBeVisible();
+    await expect(banner.or(strip)).toContainText('Marseille');
   });
 
   test('pin_visible_place exists and only accepts what is on screen', async ({ page }) => {

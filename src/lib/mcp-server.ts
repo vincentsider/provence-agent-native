@@ -161,11 +161,16 @@ const TOOLS: McpTool[] = [
         limit: 800,
         offset: 0,
       });
+      const centroids = townCentroids(sc.catalog, sc.vocab);
       const picks = selectTonight(
         indices.map((i) => sc.catalog.places[i]!),
         center,
         radius,
         limit,
+        (p) => {
+          const town = p.t >= 0 ? sc.vocab.towns[p.t] : undefined;
+          return (town && centroids.get(fold(town))) || null;
+        },
       );
       return {
         date,

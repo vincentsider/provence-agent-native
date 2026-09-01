@@ -37,6 +37,62 @@ export function missionPhotos(mission: Mission): string[] {
   return photos;
 }
 
+/** A plain agent SEARCH takes the stage the way a mission does (field
+ *  feedback 1 Sep): the request written over the real photographs of what
+ *  it found. Same band, same collage rules, no scout chips. */
+export function RequestHero({
+  title,
+  photos,
+  children,
+}: {
+  title: string;
+  photos: readonly string[];
+  children?: React.ReactNode;
+}) {
+  const t = useTranslations('mission');
+  const layout = collageLayout(photos.length);
+  return (
+    <div
+      data-testid="request-banner"
+      aria-label={t('searchAria')}
+      className="relative overflow-hidden border-y-[6px] border-brand-yellow bg-brand-petrol"
+    >
+      {!layout && <div aria-hidden className="mission-hero-fallback absolute inset-0" />}
+      {layout && (
+        <div aria-hidden className={`absolute inset-0 grid ${layout.cols}`}>
+          {photos.slice(0, layout.n).map((src, i) => (
+            <div key={src} className="mission-photo relative overflow-hidden" style={{ animationDelay: `${i * 260}ms` }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                loading={i < 3 ? 'eager' : 'lazy'}
+                className="mission-photo-img h-full w-full object-cover"
+                style={{ animationDelay: `${i * 900}ms` }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(0,39,49,.88) 0%, rgba(0,39,49,.45) 45%, rgba(0,39,49,.88) 100%)',
+        }}
+      />
+      <div className="relative mx-auto max-w-[900px] px-5 py-10 text-center text-white">
+        <p className="display-caps text-[12px] tracking-widest text-brand-yellow/90">{t('searchKicker')}</p>
+        <h2 className="display-caps mx-auto mt-3 max-w-[820px] text-2xl leading-[1.15] text-white md:text-4xl">
+          {title}
+        </h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function MissionHero({ mission, children }: { mission: Mission; children?: React.ReactNode }) {
   const t = useTranslations('mission');
   const photos = missionPhotos(mission);
