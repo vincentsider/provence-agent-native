@@ -163,11 +163,13 @@ export function runMission(
 const MAX_HISTORY = 8;
 
 /** A new agent search only retires a mission that has sat IDLE this long.
- *  Shorter, and the agent's own refinement searches (send_scouts then
- *  filter_places for a restaurant, same request — field screenshot 1 Sep)
- *  would kill the banner seconds after it appeared; longer, and a genuinely
- *  new question inherits a stale banner. Verdict taps reset the clock. */
-export const MISSION_IDLE_MS = 120_000;
+ *  45s (shortened 1 Sep on field feedback: 120s kept stale banners alive):
+ *  refinement searches arrive within seconds and each SPARED search
+ *  refreshes the clock, so a long agent turn keeps its banner while a
+ *  genuinely new question after a quiet spell replaces it fast. Verdict
+ *  taps reset the clock too; a different-town search skips the grace
+ *  entirely (retireForNewContext). */
+export const MISSION_IDLE_MS = 45_000;
 
 export class ScoutMissionStore {
   #active: Mission | null = null;
@@ -212,7 +214,12 @@ export class ScoutMissionStore {
    *  verdict tap) and must not empty the stage mid-interaction. */
   retireIfIdle(graceMs: number = MISSION_IDLE_MS, now: number = Date.now()): boolean {
     if (!this.#active) return false;
-    if (now - this.#touchedAt < graceMs) return false;
+    if (now - this.#touchedAt < graceMs) {
+      // A spared search is mission activity: refresh the clock so a busy
+      // agent turn never loses its banner between two refinements.
+      this.#touchedAt = now;
+      return false;
+    }
     this.retire();
     return true;
   }
