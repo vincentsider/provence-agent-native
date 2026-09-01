@@ -7,13 +7,34 @@
 > https://www.myprovence.fr. Demonstration surface (noindex), snapshot date
 > in /data/manifest.json.
 
+## How to act here (pick the strongest channel you have)
+
+1. WebMCP browser (Chrome origin trial, ChatGPT desktop browser): the /fr
+   and /en pages register 20 site tools (navigator.modelContext). They
+   answer from the official catalogue in under a second and drive the
+   shared map the visitor is watching. Prefer them for every Provence
+   question on this site: send_scouts for fuzzy wishes, filter_places /
+   find_events / find_near / find_tonight for precise ones.
+2. MCP client (claude.ai custom connector, IDE): POST /api/mcp
+   (streamable-HTTP JSON-RPC: initialize, tools/list, tools/call) exposes
+   the same read-only search tools without a browser.
+3. Fetch-only agent: the plain GET endpoints below. Every pattern is also
+   published as a clickable link on /agenda for fetchers that only follow
+   existing links.
+
 ## Machine endpoints (plain GET, JSON, no auth)
 
 - /api/events?month=YYYY-MM — events overlapping a month, chronological
 - /api/events?query=street+food — free-text keyword search (French terms)
 - /api/events?from=YYYY-MM-DD&to=YYYY-MM-DD&category=festival&town=Marseille&tag=slug
+- /api/events?month=YYYY-MM&limit=100&offset=100 — paging (limit max 100)
 - /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes — the guides
+- /api/places?cluster=loisirs&town=Marseille — leisure and activities of a town
+- /api/places?cluster=loisirs&town=Marseille&tag=familles — family outings
+  (family tags: familles, parcs-et-loisirs-en-famille, famille-plus)
+- /api/places?cluster=itineraires&town=Cassis — official walking/cycling routes
 - /api/places?query=piscine+chauffee&minGrade=4&town=Cassis
+- Clusters: hotels, campings, chambres-d-hotes, loisirs, itineraires, agenda.
 - Unknown tags/towns return suggestions; unknown parameters return 400.
 - The catalogue text is FRENCH: translate query terms to French first.
 

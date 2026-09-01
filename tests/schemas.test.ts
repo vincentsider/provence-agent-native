@@ -116,9 +116,9 @@ describe('fuzzing', () => {
     expect(r.success).toBe(false);
   });
 
-  it('limit is capped at 40 by the schema itself', () => {
-    const r = filterPlacesInput.safeParse({ limit: 41 });
-    expect(r.success).toBe(false);
+  it('limit is capped at 100 by the schema itself (raised 1 Sep: a 40-row page of a 1164-event month read as a useless sample to fetch agents)', () => {
+    expect(filterPlacesInput.safeParse({ limit: 100 }).success).toBe(true);
+    expect(filterPlacesInput.safeParse({ limit: 101 }).success).toBe(false);
   });
 
   it('get_place requires id or url', () => {

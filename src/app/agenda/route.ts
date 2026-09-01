@@ -89,8 +89,15 @@ doit pouvoir cliquer, pas recomposer l'URL ; adaptez les valeurs) :</p>
 <li><a href="/api/places?cluster=hotels&amp;town=Cassis&amp;tag=parking">/api/places?cluster=hotels&amp;town=Cassis&amp;tag=parking</a> — hôtels d'une ville, critère parking</li>
 <li><a href="/api/places?cluster=campings&amp;tag=animaux-acceptes">/api/places?cluster=campings&amp;tag=animaux-acceptes</a> — campings acceptant les animaux</li>
 <li><a href="/api/places?query=piscine+chauffee&amp;minGrade=4">/api/places?query=piscine+chauffee&amp;minGrade=4</a> — texte libre + étoiles minimum</li>
+<li><a href="/api/places?cluster=loisirs&amp;town=Marseille">/api/places?cluster=loisirs&amp;town=Marseille</a> — loisirs et activités d'une ville</li>
+<li><a href="/api/places?cluster=loisirs&amp;town=Marseille&amp;tag=familles">/api/places?cluster=loisirs&amp;town=Marseille&amp;tag=familles</a> — sorties en famille (tags : familles, parcs-et-loisirs-en-famille)</li>
+<li><a href="/api/places?cluster=itineraires&amp;town=Cassis">/api/places?cluster=itineraires&amp;town=Cassis</a> — randonnées et circuits officiels d'une ville</li>
+<li><a href="/api/events?month=${esc(today.slice(0, 7))}&amp;limit=100&amp;offset=100">/api/events?month=${esc(today.slice(0, 7))}&amp;limit=100&amp;offset=100</a> — pagination (limit max 100, offset libre)</li>
 <li><a href="/llms.txt">/llms.txt</a> — description complète de la surface (paramètres, vocabulaire)</li>
 </ul>
+<p>Clients MCP (claude.ai connectors, IDE) : POST /api/mcp — endpoint MCP streamable-HTTP
+(initialize, tools/list, tools/call) exposant filter_places, find_events, find_near,
+find_tonight, explain_vocabulary sur ce même catalogue.</p>
 <p>Dans un navigateur compatible WebMCP, la page <a href="/fr">/fr</a> expose en plus 20 outils de site (send_scouts, find_events, filter_places, find_tonight…).</p>
 <ol>
 ${items}

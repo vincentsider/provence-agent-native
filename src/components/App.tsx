@@ -268,8 +268,10 @@ function AgentGuide() {
     'No browser? Same data over plain HTTP: ' +
     'GET /api/events?query=street+food | GET /api/events?month=2026-10&category=festival&town=Marseille | ' +
     'GET /api/places?cluster=hotels&tag=parking&tag=animaux-acceptes | ' +
-    'GET /agenda (server-rendered HTML) | GET /llms.txt (full surface description) | ' +
-    'POST /api/mcp (MCP streamable-http: initialize, tools/list, tools/call). ' +
+    'GET /agenda (server-rendered HTML, with clickable parameterised examples for ' +
+    'EVERY cluster incl. loisirs and itineraires) | GET /llms.txt (full surface ' +
+    'description) | POST /api/mcp (MCP streamable-http: initialize, tools/list, ' +
+    'tools/call — the strongest channel for MCP clients). ' +
     'Catalogue text is FRENCH: translate query terms to French. A fuzzy ' +
     'multi-criteria wish in any language -> send_scouts; a wish with no place ' +
     'named is still about Provence, never another region. ' +
@@ -432,6 +434,8 @@ function SiteFooter({ snapshotDate }: { snapshotDate: string | null }) {
           <a className="underline hover:text-brand-yellow" href="/api/events?month=2026-10">/api/events?month=2026-10</a>
           {' · '}
           <a className="underline hover:text-brand-yellow" href="/api/places?cluster=hotels&town=Cassis&tag=parking">/api/places?cluster=hotels&town=Cassis&tag=parking</a>
+          {' · '}
+          <a className="underline hover:text-brand-yellow" href="/api/places?cluster=loisirs&town=Marseille&tag=familles">/api/places?cluster=loisirs&town=Marseille&tag=familles</a>
           {' · '}
           <a className="underline hover:text-brand-yellow" href="/agenda">/agenda</a>
           {' · '}

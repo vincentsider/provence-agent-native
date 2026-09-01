@@ -61,9 +61,9 @@ export const filterPlacesInput = z
       .number()
       .int()
       .min(1)
-      .max(40)
+      .max(100)
       .default(20)
-      .describe('Maximum results. Hard cap 40 to keep the response small.'),
+      .describe('Maximum results. Hard cap 100; page with offset for the rest.'),
     offset: z.number().int().min(0).max(5000).default(0),
   })
   .strict();
@@ -174,7 +174,7 @@ export const findEventsInput = z
       .max(80)
       .optional()
       .describe('Free-text keyword search over event names, towns and summaries, accent-insensitive. The catalogue is FRENCH: translate terms to French first ("Weihnachtsmarkt" -> "marche de noel"). Example: "street food festival".'),
-    limit: z.number().int().min(1).max(40).default(20),
+    limit: z.number().int().min(1).max(100).default(20),
     offset: z.number().int().min(0).max(5000).default(0),
   })
   .strict();
