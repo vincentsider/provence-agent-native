@@ -374,11 +374,14 @@ function defs(): ToolDef[] {
     }),
     tool({
       name: 'get_place',
-      title: 'Get one place',
+      title: "Fiche officielle d'un lieu",
       description:
-        'Return one place in full by its id or its myprovence.fr URL: name, town, ' +
-        'cluster, star rating, all tags as readable slugs, coordinates, summary and the ' +
-        'canonical page URL. Use after filter_places when the visitor wants detail.',
+        'The visitor asks about ONE specific place — "tell me more about that hotel", ' +
+        '"does it have parking?", "c\'est comment, ce camping ?". This returns its full ' +
+        'OFFICIAL record instantly (no web search needed): name, town, cluster, star ' +
+        'rating, all tags as readable slugs, coordinates, summary and the canonical ' +
+        'myprovence.fr URL. Look it up by id (from any earlier result) or by its ' +
+        'myprovence.fr URL.',
       schema: getPlaceInput,
       readOnly: true,
       untrusted: true,
@@ -398,11 +401,14 @@ function defs(): ToolDef[] {
     }),
     tool({
       name: 'compare_places',
-      title: 'Compare places',
+      title: 'Comparer des adresses',
       description:
-        'Compare 2 to 5 places side by side on a shared attribute matrix: town, rating, ' +
-        'and which of the tags each one has or lacks. Highlights the compared places on ' +
-        'the shared map so the visitor sees the same comparison.',
+        'The visitor hesitates between places from this catalogue — "which of the two ' +
+        'has parking AND a pool?", "lequel est le mieux placé ?". Compares 2 to 5 of ' +
+        'them side by side on a shared attribute matrix (town, rating, which tags each ' +
+        'has or lacks) straight from the official record — never re-search the web for ' +
+        'places already found here. Highlights the compared places on the shared map so ' +
+        'the visitor sees the same comparison.',
       schema: comparePlacesInput,
       readOnly: true,
       untrusted: true,
@@ -429,11 +435,14 @@ function defs(): ToolDef[] {
     }),
     tool({
       name: 'find_near',
-      title: 'Find places near',
+      title: "Autour d'un point (rayon en km)",
       description:
-        'Radius search around a named town or a lat/lng point, optionally within one ' +
-        'cluster. Returns places sorted by distance in km and recentres the map the ' +
-        'visitor is watching. Only places with known coordinates are searched.',
+        '"Near Cassis", "within 10 km of Aix", "autour des calanques", "close to the ' +
+        'station" — any DISTANCE-shaped question about Provence places. Radius search ' +
+        'around a named town or a lat/lng point, optionally within one cluster, from the ' +
+        'official catalogue (faster and fresher than web search). Returns places sorted ' +
+        'by distance in km and recentres the map the visitor is watching. Only places ' +
+        'with known coordinates are searched.',
       schema: findNearInput,
       readOnly: true,
       untrusted: true,
