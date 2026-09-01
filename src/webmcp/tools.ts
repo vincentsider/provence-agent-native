@@ -198,7 +198,7 @@ export function makeExecute<S extends z.ZodType>(
  *  adopted into the shortlist — the single source of truth the postcard
  *  footer and carnet render — then the live shortlist is returned.
  *  Bounded by the shortlist's own cap; every failure is theatre-only. */
-function adoptChoicesIntoShortlist(store: Store): readonly ShortlistItem[] {
+export function adoptChoicesIntoShortlist(store: Store): readonly ShortlistItem[] {
   const shortlist = getShortlistStore();
   const seen = new Set(shortlist.getSnapshot().map((i) => i.id));
   const adopt = (id: number, request: string | null) => {
