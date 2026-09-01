@@ -823,8 +823,9 @@ function defs(): ToolDef[] {
             ? { lat: input.lat, lng: input.lng }
             : null;
         let townFilter = input.town;
+        const centroids = townCentroids(store.catalog, store.vocab);
         if (!center && input.town !== undefined) {
-          const c = townCentroids(store.catalog, store.vocab).get(fold(input.town));
+          const c = centroids.get(fold(input.town));
           if (c) {
             center = c;
             townFilter = undefined; // the radius replaces the boundary
@@ -851,7 +852,6 @@ function defs(): ToolDef[] {
           limit: 800,
           offset: 0,
         });
-        const centroids = townCentroids(store.catalog, store.vocab);
         const townFallback = (p: (typeof places)[number]) => {
           const town = p.t >= 0 ? store.vocab.towns[p.t] : undefined;
           return (town && centroids.get(fold(town))) || null;

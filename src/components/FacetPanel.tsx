@@ -38,6 +38,13 @@ export function FacetPanel({
 }) {
   const t = useTranslations('filters');
   const [query, setQuery] = useState('');
+  // The human's explicit "Toutes les villes" must not snap back to the
+  // agent's town (audit 15: the display would lie about the real filter).
+  // Touched resets when a NEW agent search names a town again.
+  const [townTouched, setTownTouched] = useState(false);
+  useEffect(() => {
+    setTownTouched(false);
+  }, [agentTown]);
   // Tool theatre (issue #607): when the agent filters, its tags flash in the
   // rail so the human sees the same control being worked. Timeout cleared on
   // unmount and on every new flash.
@@ -99,9 +106,9 @@ export function FacetPanel({
   // Fold-match the agent's town against the visible option list so
   // "marseille" still selects "Marseille"; no match, no display.
   const townDisplay = useMemo(() => {
-    if (!agentTown || filter.town) return null;
+    if (!agentTown || filter.town || townTouched) return null;
     return towns.find((tn) => fold(tn) === fold(agentTown)) ?? null;
-  }, [agentTown, filter.town, towns]);
+  }, [agentTown, filter.town, towns, townTouched]);
 
   const toggleTag = (slug: string) => {
     const has = filter.tags.includes(slug);
@@ -124,7 +131,10 @@ export function FacetPanel({
         <span className="sr-only">{t('town')}</span>
         <select
           value={filter.town ?? townDisplay ?? ''}
-          onChange={(e) => onChange({ ...filter, town: e.target.value || null })}
+          onChange={(e) => {
+            setTownTouched(true);
+            onChange({ ...filter, town: e.target.value || null });
+          }}
           className="w-full border border-brand-ink/30 bg-white px-2 py-2 font-slab text-[14px] focus:border-brand-ink focus:outline-none"
         >
           <option value="">{t('allTowns')}</option>

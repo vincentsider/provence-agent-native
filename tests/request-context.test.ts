@@ -8,7 +8,7 @@
 
 import { ScoutMissionStore, type Mission } from '@/lib/scouts';
 import { buildDefaultCarnet } from '@/lib/carnet';
-import { getAgentRequest, setAgentRequest } from '@/lib/agent-context';
+import { getAgentRequest, getAgentTown, setAgentRequest } from '@/lib/agent-context';
 import type { ShortlistItem } from '@/lib/shortlist';
 
 const mission = (id: string, text: string, towns: string[] = []): Mission => ({
@@ -132,5 +132,14 @@ describe('agent-context label', () => {
     expect(getAgentRequest()).toBeNull();
     setAgentRequest(null);
     expect(getAgentRequest()).toBeNull();
+  });
+
+  it('carries the searched town, clears it on town-less searches', () => {
+    setAgentRequest('ce soir à Marseille', 'Marseille');
+    expect(getAgentTown()).toBe('Marseille');
+    setAgentRequest('week-end romantique');
+    expect(getAgentTown()).toBeNull();
+    setAgentRequest('agenda', '   ');
+    expect(getAgentTown()).toBeNull();
   });
 });
