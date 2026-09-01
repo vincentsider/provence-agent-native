@@ -293,6 +293,14 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
           const line = document.createElement('p');
           line.className = 'scout-popup-line';
           line.textContent = [f.town, f.d1 ?? f.upcoming?.date].filter(Boolean).join(' · ');
+          // The pin leads to the thing itself (field ask 1 Sep): the full
+          // record on myprovence.fr, new tab, same as the highlight chips.
+          const link = document.createElement('a');
+          link.href = f.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'myprovence.fr';
+          link.className = 'scout-popup-link';
           const row = document.createElement('div');
           row.className = 'scout-popup-row';
           const keep = document.createElement('button');
@@ -326,7 +334,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
             layer.removeLayer(flag);
           });
           row.append(keep, dismiss);
-          content.append(title, line, row);
+          content.append(title, line, link, row);
           flag.bindPopup(content, { closeButton: false, offset: [0, -40] });
         };
 

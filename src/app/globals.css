@@ -162,6 +162,7 @@
 .scout-popup { font-family: var(--font-slab), Georgia, serif; min-width: 180px; }
 .scout-popup-title { font-weight: 700; color: #002731; margin: 0 0 2px; }
 .scout-popup-line { font-size: 12px; color: #434343; margin: 0 0 8px; }
+.scout-popup-link { display: inline-block; font-size: 12px; color: #EE6E62; text-decoration: underline; margin: 0 0 8px; }
 .scout-popup-row { display: flex; gap: 6px; }
 .scout-popup-keep,
 .scout-popup-dismiss {
