@@ -314,6 +314,11 @@ export function mcpToolCount(): number {
   return TOOLS.length;
 }
 
+/** Names + descriptions only, for the description-hygiene regression tests. */
+export function mcpToolDescriptions(): ReadonlyArray<{ name: string; description: string }> {
+  return [...TOOLS.map((t) => ({ name: t.name, description: t.description })), { ...PULSE_TOOL }];
+}
+
 export interface McpExtras {
   /** Server-side pulse fetcher; when present, get_demand_pulse is exposed. */
   readonly demandPulse?: () => Promise<PulseData>;
