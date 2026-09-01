@@ -235,6 +235,10 @@
   box-shadow: 0 0 0 2px #ffe500, 0 1px 3px rgba(0, 39, 49, 0.35);
 }
 .poi-chip--approx { border-style: dashed; opacity: 0.75; }
+.poi-chip--kept {
+  background: #ffe500;
+  box-shadow: 0 0 0 2px #002731 inset;
+}
 .scout-flag-glyph {
   display: flex;
   align-items: center;

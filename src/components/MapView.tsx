@@ -543,23 +543,75 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         }
         // The sign conveys the thing (field request 29 Aug): a pictogram
         // chip per record; the border still says who put it there.
-        L.marker([at.lat, at.lng], {
+        const chip = L.marker([at.lat, at.lng], {
           icon: L.divIcon({
             className: 'ink-label-wrap',
             html:
               `<span class="poi-chip${agentDriven ? ' poi-chip--agent' : ''}${at.approx ? ' poi-chip--approx' : ''}">` +
               `${pickGlyph(p, store.vocab)}</span>`,
+            // The ROOT is the click target and must cover the 26px drawing:
+            // Leaflet's 12x12 divIcon default made the chip unclickable, the
+            // exact bug the scout flags had (audit pass, 1 Sep).
+            iconSize: [26, 26],
             iconAnchor: [13, 13],
           }),
-        })
-          .bindPopup(
-            `<span class="display-caps" style="font-size:12px;color:${PETROL}">${escapeHtml(p.n)}</span>` +
-              (at.approx
-                ? `<br/><span style="font-size:11px;color:#434343">position approximative (au bourg)</span>`
-                : '') +
-              `<br/><a href="https://www.myprovence.fr${escapeAttr(p.u)}" target="_blank" rel="noopener noreferrer" style="color:${CORAL}">myprovence.fr</a>`,
-          )
-          .addTo(group);
+        }).addTo(group);
+        // Same GARDER/ÉCARTER as the scout flags (field question 1 Sep:
+        // "why only on the flags?"): every agent-surfaced pin is judgeable,
+        // and keeps land in the same shortlist the carnet reads. Built,
+        // never innerHTML'd: catalogue names stay inert text.
+        const pub = store.toPublicShape(p);
+        const content = document.createElement('div');
+        content.className = 'scout-popup';
+        const title = document.createElement('p');
+        title.className = 'scout-popup-title';
+        title.textContent = pub.name;
+        content.append(title);
+        if (at.approx) {
+          const approx = document.createElement('p');
+          approx.className = 'scout-popup-line';
+          approx.textContent = 'position approximative (au bourg)';
+          content.append(approx);
+        }
+        const link = document.createElement('a');
+        link.href = pub.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'myprovence.fr';
+        link.style.color = CORAL;
+        content.append(link);
+        const row = document.createElement('div');
+        row.className = 'scout-popup-row';
+        const keep = document.createElement('button');
+        keep.type = 'button';
+        keep.textContent = keepLabel;
+        keep.className = 'scout-popup-keep';
+        keep.addEventListener('click', () => {
+          getShortlistStore().keep({
+            id: pub.id,
+            name: pub.name,
+            town: pub.town ?? '',
+            url: pub.url,
+            d1: p.d1 ?? null,
+            d2: p.d2 ?? null,
+            img: pub.image,
+            glyph: pickGlyph(p, store.vocab),
+          });
+          chip.getElement()?.querySelector('.poi-chip')?.classList.add('poi-chip--kept');
+          chip.closePopup();
+        });
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.textContent = dismissLabel;
+        dismiss.className = 'scout-popup-dismiss';
+        dismiss.addEventListener('click', () => {
+          getShortlistStore().remove(pub.id);
+          chip.closePopup();
+          group.removeLayer(chip);
+        });
+        row.append(keep, dismiss);
+        content.append(row);
+        chip.bindPopup(content, { closeButton: false, offset: [0, -16] });
         drawn++;
       }
     })();

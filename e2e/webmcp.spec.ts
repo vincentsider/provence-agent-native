@@ -533,6 +533,44 @@ test.describe('wish box', () => {
 
 /** Le carnet (29 Aug): the agreed plan becomes the briefing pack. */
 test.describe('carnet de voyage', () => {
+  test('keeping a HIGHLIGHT chip (not a scout flag) also feeds the carnet', async ({ page }) => {
+    await page.goto('/fr');
+    const hasWebMcp = await page.evaluate(
+      () => typeof (document as never as { modelContext?: object }).modelContext !== 'undefined',
+    );
+    test.skip(!hasWebMcp, 'browser has no document.modelContext (flag off)');
+    type Mc = {
+      getTools(): Promise<Array<{ name: string }>>;
+      executeTool(tool: { name: string }, input?: object | string): Promise<string>;
+    };
+    await page.waitForFunction(
+      async () =>
+        (await (document as never as { modelContext: Mc }).modelContext.getTools()).length >= 20,
+      { timeout: 5_000 },
+    );
+    // The agent path that draws chips: search, then highlight the cited ids.
+    await page.evaluate(async () => {
+      const mc = (document as never as { modelContext: Mc }).modelContext;
+      const tools = await mc.getTools();
+      const call = async (name: string, input: object) => {
+        const tool = tools.find((x) => x.name === name);
+        if (!tool) throw new Error(`${name} not registered`);
+        return JSON.parse(await mc.executeTool(tool, JSON.stringify(input))) as {
+          data?: { results?: Array<{ id: number }> };
+        };
+      };
+      const found = await call('filter_places', { town: 'Cassis', cluster: 'hotels', limit: 3 });
+      const ids = (found.data?.results ?? []).map((r) => r.id);
+      if (ids.length === 0) throw new Error('no Cassis hotels in catalogue');
+      await call('highlight_places', { ids });
+    });
+    const chip = page.locator('.poi-chip--agent').first();
+    await chip.waitFor({ state: 'visible', timeout: 10_000 });
+    await chip.click();
+    await page.locator('.scout-popup-keep').click();
+    await expect(page.getByTestId('carnet-button')).toBeVisible();
+  });
+
   test('keeping a flag surfaces the carnet button; the pack renders and closes', async ({ page }) => {
     await page.goto('/fr');
     // Scouts come only from the agent now (wish box v4): dispatch through
