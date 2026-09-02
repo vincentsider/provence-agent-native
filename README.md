@@ -1,6 +1,6 @@
-# MyProvence Agent-Ready — provence-agent-native
+# MyProvence Agent-Ready (provence-agent-native)
 
-**Live: [webmcp.myprovence.fr](https://webmcp.myprovence.fr/fr)** — the
+**Live: [webmcp.myprovence.fr](https://webmcp.myprovence.fr/fr)**, the
 official Provence Tourisme catalogue (2,798 places, 3,605 dated events, 232
 official routes), rebuilt as a shared stage where a human and their AI agent
 explore a real destination together, on one live page.
@@ -17,7 +17,7 @@ against a signed audit on every page load.
 ![The agent's mission takes the masthead: the wish over the real photographs of what was found](docs/screenshots/mission-banner.png)
 
 *The agent pinned a hotel: unmissable marker, popup open, grid collapsed to
-the pick — and the visitor answers with GARDER / ÉCARTER:*
+the pick, and the visitor answers with GARDER / ECARTER:*
 
 ![The agent's pin with keep/dismiss](docs/screenshots/agent-pin.png)
 
@@ -32,7 +32,7 @@ Measured live on the source site (one GET, no JavaScript, 26-27 Aug 2026):
 - All **1,925 facet links** carry `rel="nofollow"`, and facet values are
   opaque ids (`maptags:469` means parking; nothing says so).
 
-The records are readable; the *index* over them is not — and the human is
+The records are readable; the *index* over them is not, and the human is
 absent from every agent channel. This project is both: a queryable index
 (`filter_places` answers "hôtels avec parking qui acceptent les chiens" in
 one sub-millisecond call) and a shared surface where the agent's moves are
@@ -43,29 +43,29 @@ visible and the human's taps are readable back.
 - **send_scouts** turns one fuzzy wish, any language, into 2-4 scout
   searches that visibly fan out across the map and plant evidence flags;
   the masthead becomes the wish over the findings' real photographs.
-- **The human talks with hands**: GARDER/ÉCARTER on every pin, padlocks on
+- **The human talks with hands**: GARDER/ECARTER on every pin, padlocks on
   results, right-click pings ("more like this here", "avoid this"), answer
-  cards — all read back by the agent (`get_scout_reports`,
+  cards. All of it is read back by the agent (`get_scout_reports`,
   `get_visitor_signals`) as decisions, not suggestions.
 - **read_visitor_wish** (description-as-heartbeat): WebMCP has no push
   channel, so this tool *appears* when the visitor acts and rewrites its
-  own description with the live page state — the agent knows what you
+  own description with the live page state. The agent knows what you
   typed, ran and kept before its first call of the turn.
 - **pin_visible_place** (schema-as-viewport): its input schema is an ENUM
   of the place names currently on screen, re-registered via AbortSignal as
   the view moves. "Pin the Ritz Paris" is invalid *by schema*.
 - **get_visitor_view** returns the viewport with the TOWNS it frames,
-  ranked, plus the dominant one — meaning, not coordinates.
+  ranked, plus the dominant one. Meaning, not coordinates.
 - **The plan becomes an artifact**: kept flags, locks and the accepted pin
   compose the *carnet de voyage* (print-ready, one section per request,
   PDF) and the postcard; the agent can only reference chosen ids.
 - **The demand pulse**: every zero-result agent search feeds an anonymized
-  (k≥3) aggregate the destination reads back — the demand its catalogue
+  (k>=3) aggregate the destination reads back: the demand its catalogue
   misses, measured.
 
 Full tool list: 20 registered at module evaluation (search, lookup,
 compare, radius, tonight, stats, view control, highlighting, elicitation,
-signals, pulse, postcard, carnet) — see `src/webmcp/tools.ts`; every input
+signals, pulse, postcard, carnet). See `src/webmcp/tools.ts`; every input
 schema is Zod `.strict()`, every annotation honest
 (`readOnlyHint`/`untrustedContentHint`).
 
@@ -73,10 +73,10 @@ schema is Zod `.strict()`, every annotation honest
 
 | Channel | Entry point |
 |---|---|
-| WebMCP browser (Chrome origin trial, ChatGPT desktop) | https://webmcp.myprovence.fr/fr — 20 site tools |
+| WebMCP browser (Chrome origin trial, ChatGPT desktop) | https://webmcp.myprovence.fr/fr (20 site tools) |
 | MCP clients (claude.ai connector, IDEs) | `POST /api/mcp` (streamable-HTTP JSON-RPC) |
 | Fetch agents that compose URLs | `/api/places`, `/api/events` (JSON GET, paging to 100) |
-| Fetch agents that only follow links | `/agenda` — clickable parameterised examples for every cluster |
+| Fetch agents that only follow links | `/agenda` (clickable parameterised examples for every cluster) |
 
 `/llms.txt` tells each kind of agent which channel to use. The Zod schemas
 are shared across all four: the surfaces cannot drift.
@@ -84,9 +84,9 @@ are shared across all four: the surfaces cannot drift.
 ## Try it in 90 seconds
 
 ChatGPT desktop (default model, built-in browser, check "Site tools" lists
-~20): open the live URL, then —
+~20): open the live URL, then:
 
-1. "Sur ce site — I want a stay in Cassis: a hotel with parking, and a nice
+1. "On this site, I want a stay in Cassis: a hotel with parking, and a nice
    market or event while we are there." Watch the scouts fly; tap GARDER on
    a flag.
 2. "What did I keep? Don't suggest anything I dismissed."
@@ -94,7 +94,7 @@ ChatGPT desktop (default model, built-in browser, check "Site tools" lists
    schema)
 4. "Compose my carnet de voyage." Then download the PDF.
 
-On claude.ai: Settings → Connectors → add
+On claude.ai: open Settings, then Connectors, then add
 `https://webmcp.myprovence.fr/api/mcp`, then ask "Find family-friendly
 outdoor activities near Marseille."
 
@@ -109,10 +109,10 @@ npm run build && npm start   # http://localhost:3040/fr
 
 To see the tools: Chrome with `--enable-features=WebMCPTesting` (or the
 origin trial), or ChatGPT's desktop browser. Without WebMCP the page is a
-complete, accessible catalogue browser — a hard requirement, not a
+complete, accessible catalogue browser. A hard requirement, not a
 fallback.
 
-Tests: `npm test` (279 unit — engine-vs-reference over 1,000 randomised
+Tests: `npm test` (280 unit: engine-vs-reference over 1,000 randomised
 queries, sanitiser injection corpus, schema fuzzing, description hygiene)
 and `npx playwright test` (46 e2e, including tests that drive the tools
 through `document.modelContext` itself).
@@ -127,8 +127,8 @@ through `document.modelContext` itself).
   internally. Registration never waits on the network.
 - **Descriptions are UX and a trust surface.** All 20 follow the
   vendor-documented selection pattern (affirmative capability, "use when...",
-  under Chrome's 500-character budget, zero cross-tool imperatives — the
-  tool-poisoning signature scanners flag). Pinned by unit tests.
+  under Chrome's 500-character budget, and zero cross-tool imperatives,
+  the pattern scanners flag as tool poisoning). Pinned by unit tests.
 - **The catalogue is not in this repository.** It is built by `npm run
   ingest` and served from `DATA_URL`. The content belongs to Provence
   Tourisme via the Apidae network; every tool result carries the canonical
