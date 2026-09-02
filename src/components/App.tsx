@@ -20,6 +20,7 @@ import { startWishHeartbeat } from '@/webmcp/heartbeat';
 import { getServerWebMcpStatus, getWebMcpStatus, subscribeWebMcpStatus } from '@/webmcp/status';
 import { getStore, type ViewState } from '@/lib/store';
 import { getAgentRequest, getAgentTown, subscribeAgentRequest } from '@/lib/agent-context';
+import { setPresenceLocale } from '@/lib/presence';
 import { CLUSTERS, type ClusterKey } from '@/lib/types';
 import { FacetPanel, type UiFilter } from './FacetPanel';
 import { PlaceList } from './PlaceList';
@@ -384,6 +385,12 @@ function Loaded({
   const view: ViewState = useSyncExternalStore(store.subscribe, store.getView, store.getView);
   const agentTown = useSyncExternalStore(subscribeAgentRequest, getAgentTown, () => null);
   const [filter, setFilter] = useState<UiFilter>(EMPTY_FILTER);
+  const appLocale = useLocale();
+  // The agent's presence bubbles must speak the page's language (field bug
+  // 2 Sep: French intents over the EN site).
+  useEffect(() => {
+    setPresenceLocale(appLocale);
+  }, [appLocale]);
 
   // Human-driven filtering goes through the exact same store call the agent
   // uses; the map and list cannot diverge between the two actors.

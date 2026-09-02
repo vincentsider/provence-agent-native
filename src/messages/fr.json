@@ -58,7 +58,8 @@
   },
   "scouts": {
     "keep": "Garder",
-    "dismiss": "Écarter"
+    "dismiss": "Écarter",
+    "approx": "position approximative (au bourg)"
   },
   "postcard": {
     "aria": "Carte postale de votre futur séjour",
@@ -102,5 +103,8 @@
   },
   "history": {
     "title": "Vos recherches précédentes — tapez pour rejouer"
+  },
+  "agentPresence": {
+    "label": "l'agent"
   }
 }

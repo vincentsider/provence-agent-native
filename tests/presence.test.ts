@@ -3,7 +3,7 @@
  * intent lines stay short and factual (anti-Clippy: one intent per action).
  */
 
-import { PresenceBus, intentFor } from '@/lib/presence';
+import { PresenceBus, intentFor, setPresenceLocale } from '@/lib/presence';
 
 describe('PresenceBus', () => {
   it('caps the ring at 100 events and keeps the newest', () => {
@@ -45,6 +45,21 @@ describe('PresenceBus', () => {
 });
 
 describe('intentFor', () => {
+  afterEach(() => setPresenceLocale('fr'));
+
+  it('speaks the page language (field bug 2 Sep: French bubbles on the EN site)', () => {
+    setPresenceLocale('en');
+    expect(intentFor('find_tonight', { town: 'Marseille' })).toBe(
+      "checking what's on tonight in Marseille",
+    );
+    expect(intentFor('send_scouts', { scouts: [1, 2, 3] })).toBe('sending 3 scouts across the map');
+    setPresenceLocale('fr');
+    expect(intentFor('find_tonight', { town: 'Marseille' })).toContain('ce soir à Marseille');
+    // Unknown locales fall back to French, never to broken output.
+    setPresenceLocale('de');
+    expect(intentFor('get_place', {})).toBe('je lis une fiche');
+  });
+
   it('is specific when the args are', () => {
     expect(intentFor('filter_places', { tags: ['parking'], town: 'Cassis' })).toContain('Cassis');
     expect(intentFor('find_events', { month: '2026-10' })).toContain('2026-10');

@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { getPresenceBus, type PresenceEvent } from '@/lib/presence';
 import { getSignalsLog } from '@/lib/signals';
 
@@ -40,6 +41,7 @@ function parkPosition(): { x: number; y: number } {
 }
 
 export function AgentPresence() {
+  const ta = useTranslations('agentPresence');
   const bus = getPresenceBus();
   const [cursor, setCursor] = useState<CursorState>({ x: -100, y: -100, parked: true });
   const [visible, setVisible] = useState(false);
@@ -207,7 +209,7 @@ export function AgentPresence() {
             </svg>
             <div className="min-w-0">
               <span className="display-caps block text-[11px] leading-none text-brand-yellow">
-                l&apos;agent
+                {ta('label')}
               </span>
               <span className="mt-1 block truncate font-slab text-[17px] leading-snug text-white">
                 {banner}

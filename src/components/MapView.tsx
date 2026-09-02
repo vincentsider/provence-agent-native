@@ -220,6 +220,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
   // scout layer is a single LayerGroup cleared, never re-created; movement
   // is CSS transition on the marker element (no rAF at all).
   const keepLabel = t('keep');
+  const approxLabel = t('approx');
   const dismissLabel = t('dismiss');
   useEffect(() => {
     if (!mapReady) return;
@@ -606,7 +607,7 @@ export function MapView({ store, view }: { store: Store; view: ViewState }) {
         if (at.approx) {
           const approx = document.createElement('p');
           approx.className = 'scout-popup-line';
-          approx.textContent = 'position approximative (au bourg)';
+          approx.textContent = approxLabel;
           content.append(approx);
         }
         const link = document.createElement('a');

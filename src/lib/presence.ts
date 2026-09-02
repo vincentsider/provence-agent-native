@@ -86,11 +86,85 @@ export function getPresenceBus(): PresenceBus {
 }
 
 /**
- * French intent lines, one per tool — announced BEFORE the action, factual
- * and short (anti-Clippy rule: one intent, no chatter, silence at rest).
+ * Intent lines, one per tool — announced BEFORE the action, factual and
+ * short (anti-Clippy rule: one intent, no chatter, silence at rest).
+ * Locale-aware since 2 Sep (field bug: French bubbles over the EN site):
+ * the client root pins the locale once per page.
  */
+let presenceLocale: 'fr' | 'en' = 'fr';
+
+export function setPresenceLocale(locale: string): void {
+  presenceLocale = locale === 'en' ? 'en' : 'fr';
+}
+
 export function intentFor(tool: string, args: Record<string, unknown>): string {
-  return clip(rawIntent(tool, args));
+  return clip(presenceLocale === 'en' ? rawIntentEn(tool, args) : rawIntent(tool, args));
+}
+
+function rawIntentEn(tool: string, args: Record<string, unknown>): string {
+  const short = (v: unknown, n: number) =>
+    typeof v === 'string' ? (v.length <= n ? v : v.slice(0, n - 1) + '…') : '';
+  switch (tool) {
+    case 'filter_places': {
+      const parts: string[] = [];
+      if (typeof args.query === 'string') parts.push(`“${short(args.query, 40)}”`);
+      if (Array.isArray(args.tags) && args.tags.length > 0)
+        parts.push((args.tags as string[]).slice(0, 3).join(', '));
+      if (typeof args.town === 'string') parts.push(`in ${args.town}`);
+      return parts.length > 0 ? `searching ${parts.join(' · ')}` : 'browsing the catalogue';
+    }
+    case 'find_events': {
+      if (typeof args.month === 'string') return `checking the ${args.month} agenda`;
+      if (typeof args.query === 'string') return `searching the agenda for “${short(args.query, 40)}”`;
+      return 'checking the agenda';
+    }
+    case 'find_near':
+      return typeof args.town === 'string'
+        ? `looking around ${args.town}`
+        : 'searching nearby';
+    case 'get_place':
+      return 'reading a record';
+    case 'compare_places':
+      return 'comparing your options';
+    case 'get_catalog_stats':
+      return 'taking the measure of the catalogue';
+    case 'explain_vocabulary':
+      return 'checking the criteria';
+    case 'set_view':
+      return 'moving the map';
+    case 'highlight_places':
+      return 'showing you a selection';
+    case 'get_demand_pulse':
+      return 'reading traveller demand';
+    case 'send_scouts': {
+      const n = Array.isArray(args.scouts) ? args.scouts.length : 0;
+      return n > 0 ? `sending ${n} scouts across the map` : 'sending my scouts';
+    }
+    case 'get_scout_reports':
+      return 'collecting the scout reports';
+    case 'find_tonight':
+      return typeof args.town === 'string'
+        ? `checking what's on tonight in ${short(args.town, 30)}`
+        : "checking what's on tonight";
+    case 'get_visitor_view':
+      return 'looking at what you are looking at';
+    case 'pin_visible_place':
+      return typeof args.name === 'string'
+        ? `showing you ${short(args.name, 50)}`
+        : 'showing you a place';
+    case 'write_postcard':
+      return 'writing your postcard';
+    case 'compose_carnet':
+      return 'composing your travel carnet';
+    case 'get_visitor_signals':
+      return 'reading your gestures';
+    case 'ask_visitor':
+      return 'a question for you';
+    case 'get_input_result':
+      return 'collecting your answer';
+    default:
+      return 'working';
+  }
 }
 
 /** One short line, whatever the inputs: a 200-char query must not flood the

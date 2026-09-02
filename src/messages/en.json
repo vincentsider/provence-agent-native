@@ -58,7 +58,8 @@
   },
   "scouts": {
     "keep": "Keep",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "approx": "approximate position (town centre)"
   },
   "postcard": {
     "aria": "Postcard from your future trip",
@@ -102,5 +103,8 @@
   },
   "history": {
     "title": "Your previous searches — tap to replay"
+  },
+  "agentPresence": {
+    "label": "the agent"
   }
 }
